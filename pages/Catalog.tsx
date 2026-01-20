@@ -4,7 +4,6 @@ import { Product } from '../types';
 import ProductCard from '../components/ProductCard';
 import Footer from '../components/Footer';
 import CustomDropdown from '../components/CustomDropdown';
-import { getSmartSearchSuggestions } from '../services/geminiService';
 
 interface CatalogProps {
   products: Product[];
@@ -15,8 +14,6 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('All');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
 
   const brands = useMemo(() => [
     'All', 'Nissan', 'Toyota', 'Ford', 'Volkswagen', 'Honda', 'Chevrolet', 
@@ -24,20 +21,6 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
   ], []);
   
   const categories = ['All', 'Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica'];
-
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (searchTerm.length > 2) {
-        setIsSearching(true);
-        const res = await getSmartSearchSuggestions(searchTerm, products);
-        setSuggestions(res);
-        setIsSearching(false);
-      } else {
-        setSuggestions([]);
-      }
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [searchTerm, products]);
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -65,14 +48,6 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
             <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400">
               <i className="fas fa-search"></i>
             </div>
-            {suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-3 bg-white border border-slate-100 rounded-2xl shadow-2xl z-30 py-3 animate-fadeIn">
-                <p className="px-5 py-1 text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2">Sugerencias inteligentes</p>
-                {suggestions.map((s, idx) => (
-                  <button key={idx} onClick={() => setSearchTerm(s)} className="w-full text-left px-5 py-3 hover:bg-blue-50 text-sm font-bold text-slate-700 transition-colors">{s}</button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
