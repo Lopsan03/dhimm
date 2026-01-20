@@ -20,7 +20,29 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  // Build a map of local images keyed by filename (without extension)
+  const imageModules = import.meta.glob('./images/*.{png,jpg,jpeg,webp,JPG,PNG,WEBP}', { eager: true }) as Record<string, any>;
+  const imageMap: Record<string, string> = {};
+  for (const path in imageModules) {
+    const url = imageModules[path]?.default || imageModules[path];
+    const base = path.split('/').pop()?.replace(/\.[^/.]+$/, '');
+    if (base && typeof url === 'string') imageMap[base] = url;
+  }
+
+  // Initialize products using matching local image by product name when available
+  const [products, setProducts] = useState<Product[]>(
+    MOCK_PRODUCTS.map(p => ({ ...p, image: imageMap[p.name] ?? p.image }))
+  );
+
+  // Ensure new images dropped into /images are applied without losing state
+  const imageKeys = Object.keys(imageMap).join('|');
+  useEffect(() => {
+    setProducts(prev => prev.map(p => (
+      imageMap[p.name] && p.image !== imageMap[p.name]
+        ? { ...p, image: imageMap[p.name] }
+        : p
+    )));
+  }, [imageKeys]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('dhimma_user');

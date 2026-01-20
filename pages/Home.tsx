@@ -1,5 +1,6 @@
 
 import React from 'react';
+import specialistImg from '../images/specialist.JPG';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import ProductCard from '../components/ProductCard';
@@ -52,37 +53,42 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart }) => {
       </section>
 
       {/* 1. Benefits Section (Now first below hero) */}
-      <section className="bg-white py-16 border-b border-slate-100">
+      <section className="relative bg-slate-50 py-20 border-y border-slate-100">
+        <div className="absolute inset-x-0 -top-6 h-6 bg-gradient-to-b from-white/0 via-white/70 to-slate-50 pointer-events-none"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="flex flex-col items-center text-center p-6 group">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 shadow-sm">
-                <i className="fas fa-award text-2xl"></i>
-              </div>
-              <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-1">Garantía de Calidad</h3>
-              <p className="text-slate-500 text-sm">Productos garantizados</p>
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.25em] text-blue-600">Por qué elegirnos</p>
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Beneficios que te respaldan</h2>
             </div>
-            <div className="flex flex-col items-center text-center p-6 group">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 shadow-sm">
-                <i className="fas fa-shipping-fast text-2xl"></i>
-              </div>
-              <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-1">Envío Nacional</h3>
-              <p className="text-slate-500 text-sm">A todo México</p>
+            <div className="hidden md:flex items-center gap-3 text-sm text-slate-500">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+              <span>Servicio confiable en todo México</span>
             </div>
-            <div className="flex flex-col items-center text-center p-6 group">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 shadow-sm">
-                <i className="fas fa-bolt text-2xl"></i>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: 'fa-award', title: 'Garantía de Calidad', text: 'Productos garantizados' },
+              { icon: 'fa-shipping-fast', title: 'Envío Nacional', text: 'A todo México' },
+              { icon: 'fa-bolt', title: 'Atención Rápida', text: 'Respuesta inmediata' },
+              { icon: 'fa-tags', title: 'Todas las Marcas', text: 'Amplio catálogo' }
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="group relative overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-sm p-7 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-blue-200"
+              >
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-blue-50 via-white to-slate-50"></div>
+                <div className="relative flex flex-col gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner group-hover:shadow-md transition-all duration-300 group-hover:bg-blue-100">
+                    <i className={`fas ${item.icon} text-xl`}></i>
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-black text-slate-900 text-lg tracking-tight">{item.title}</h3>
+                    <p className="text-slate-500 text-sm">{item.text}</p>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-1">Atención Rápida</h3>
-              <p className="text-slate-500 text-sm">Respuesta inmediata</p>
-            </div>
-            <div className="flex flex-col items-center text-center p-6 group">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 shadow-sm">
-                <i className="fas fa-tags text-2xl"></i>
-              </div>
-              <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-1">Todas las Marcas</h3>
-              <p className="text-slate-500 text-sm">Amplio catálogo</p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -112,8 +118,8 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart }) => {
             <div className="relative">
               <div className="absolute -top-6 -left-6 w-32 h-32 bg-blue-600 rounded-[2.5rem] -z-10 opacity-5"></div>
               <img 
-                src="https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?q=80&w=1000&auto=format&fit=crop" 
-                alt="Taller Dhimma" 
+                src={specialistImg} 
+                alt="Expertos en soluciones de dirección automotriz" 
                 className="rounded-[3rem] shadow-2xl object-cover aspect-video lg:aspect-square border-8 border-white"
               />
               <div className="absolute -bottom-8 -right-8 bg-slate-900 p-10 rounded-[2.5rem] text-white shadow-2xl hidden md:block border-4 border-white">

@@ -19,11 +19,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-slate-100 overflow-hidden group">
-      <Link to={`/product/${product.id}`} className="block relative aspect-[4/3] overflow-hidden">
+      <Link to={`/product/${product.id}`} className="block relative aspect-[4/3] overflow-hidden bg-white">
         <img 
           src={product.image} 
           alt={product.name} 
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105 p-3"
         />
         {product.stock <= 0 && (
           <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">

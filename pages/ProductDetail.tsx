@@ -62,14 +62,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
           <div className="space-y-4">
             <div className="aspect-[4/3] rounded-3xl overflow-hidden border-2 border-slate-50 shadow-sm bg-white">
-              <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              {[1,2,3,4].map(i => (
-                <div key={i} className="aspect-square rounded-2xl overflow-hidden border-2 border-slate-50 bg-slate-50 cursor-pointer hover:border-blue-200 transition-all">
-                  <img src={`https://picsum.photos/seed/${i}${product.id}/200/200`} className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity" alt="" />
-                </div>
-              ))}
+              <img src={product.image} alt={product.name} className="w-full h-full object-contain p-4" />
             </div>
           </div>
 
@@ -136,8 +129,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
                 <ul className="space-y-3 text-sm text-slate-600">
                   <li className="flex justify-between border-b border-slate-200/50 pb-2"><strong>Categoría:</strong> <span>{product.category}</span></li>
                   <li className="flex justify-between border-b border-slate-200/50 pb-2"><strong>Marca:</strong> <span>{product.brand}</span></li>
-                  <li className="flex justify-between border-b border-slate-200/50 pb-2"><strong>Estado:</strong> <span>Premium</span></li>
-                  <li className="flex justify-between"><strong>Posición:</strong> <span>Delantera</span></li>
+                  <li className="flex justify-between"><strong>Estado:</strong> <span>{product.estado || 'Premium'}</span></li>
                 </ul>
               </div>
               <div className="bg-slate-50 p-8 rounded-3xl">

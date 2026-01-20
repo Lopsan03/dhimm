@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User } from '../types';
 import { COMPANY_INFO } from '../constants';
+import logoSrc from '../images/logodhimm.png';
 
 interface HeaderProps {
   user: User | null;
@@ -18,10 +19,8 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, cartCount }) => {
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center space-x-2">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-md">
-            <i className="fas fa-car-side text-white text-xl"></i>
-          </div>
+        <Link to="/" className="flex items-center space-x-3">
+          <img src={logoSrc} alt="Dhimma Automotriz" className="h-10 w-auto rounded-md shadow-md" />
           <span className="text-xl font-bold tracking-tight text-slate-800 hidden sm:block uppercase">
             DHIMMA <span className="text-blue-600">AUTOMOTRIZ</span>
           </span>
@@ -66,8 +65,14 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, cartCount }) => {
                       <Link to="/admin" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Panel Admin</Link>
                     ) : (
                       <>
-                        <Link to="/dashboard" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Mis Pedidos</Link>
-                        <Link to="/dashboard/addresses" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Direcciones</Link>
+                        <Link to="/dashboard" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                          <span aria-hidden>📦</span>
+                          <span>Mis Pedidos</span>
+                        </Link>
+                        <Link to="/dashboard/addresses" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                          <span aria-hidden>📍</span>
+                          <span>Direcciones</span>
+                        </Link>
                       </>
                     )}
                     <button 

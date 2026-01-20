@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Product, Order } from '../types';
 import { Link } from 'react-router-dom';
+import CustomDropdown from '../components/CustomDropdown';
 
 interface AdminPanelProps {
   products: Product[];
@@ -12,12 +13,31 @@ interface AdminPanelProps {
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProduct, onUpdateOrder }) => {
   const [tab, setTab] = useState<'inventory' | 'orders'>('inventory');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingField, setEditingField] = useState<'price' | 'stock' | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [filterOrderStatus, setFilterOrderStatus] = useState('All');
+  const [editForm, setEditForm] = useState({
+    price: 0,
+    stock: 0,
+    description: '',
+    category: 'Cremallera Hidráulica' as const,
+    brand: '',
+    estado: '',
+    compatibleModels: '' as any
+  });
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
   const pendingOrders = orders.filter(o => o.status === 'Pendiente').length;
+
+  const filteredProducts = filterCategory === 'All' 
+    ? products 
+    : products.filter(p => p.category === filterCategory);
+
+  const filteredOrders = filterOrderStatus === 'All' 
+    ? orders 
+    : orders.filter(o => o.status === filterOrderStatus);
 
   const OrderStatusBadge = ({ status }: { status: string }) => {
     const colors: Record<string, string> = {
@@ -29,13 +49,49 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
     return <span className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest ${colors[status]}`}>{status}</span>;
   };
 
-  const handleUpdate = (p: Product, field: 'price' | 'stock', value: string) => {
-    const numVal = Number(value);
-    if (!isNaN(numVal)) {
-      onUpdateProduct({ ...p, [field]: numVal });
+  const openEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setEditForm({
+      price: product.price,
+      stock: product.stock,
+      description: product.description || '',
+      category: product.category,
+      brand: product.brand,
+      estado: product.estado || '',
+      compatibleModels: (product.compatibleModels || []).join(', ')
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingProduct) {
+      onUpdateProduct({
+        ...editingProduct,
+        price: editForm.price,
+        stock: editForm.stock,
+        description: editForm.description,
+        category: editForm.category,
+        brand: editForm.brand,
+        estado: editForm.estado,
+        compatibleModels: editForm.compatibleModels.split(',').map((m: string) => m.trim()).filter((m: string) => m)
+      });
+      closeEditModal();
     }
-    setEditingId(null);
-    setEditingField(null);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingProduct(null);
+    setEditForm({
+      price: 0,
+      stock: 0,
+      description: '',
+      category: 'Cremallera Hidráulica' as const,
+      brand: '',
+      estado: '',
+      compatibleModels: '' as any
+    });
   };
 
   return (
@@ -94,7 +150,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       </div>
 
       {tab === 'inventory' ? (
-        <div className="bg-white rounded-[3.5rem] border-2 border-slate-50 overflow-hidden shadow-2xl shadow-slate-200/50">
+        <div className="space-y-8">
+          <div className="flex flex-wrap gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 items-end">
+            <CustomDropdown 
+              label="Filtrar por Categoría" 
+              options={['All', 'Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica']} 
+              selected={filterCategory} 
+              onSelect={setFilterCategory} 
+              placeholder="Todas las Categorías"
+            />
+            <button 
+              onClick={() => setFilterCategory('All')}
+              className="flex items-center gap-2 px-8 py-4 bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 rounded-2xl transition-all shadow-lg h-[52px]"
+            >
+              <i className="fas fa-undo"></i> Reiniciar
+            </button>
+          </div>
+          <div className="bg-white rounded-[3.5rem] border-2 border-slate-50 overflow-hidden shadow-2xl shadow-slate-200/50">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-50 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">
@@ -105,7 +177,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {products.map(p => (
+              {filteredProducts.map(p => (
                 <tr key={p.id} className="hover:bg-slate-50/20 transition-colors">
                   <td className="px-10 py-6">
                     <div className="flex items-center gap-6">
@@ -117,41 +189,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                     </div>
                   </td>
                   <td className="px-10 py-6 font-mono font-black text-slate-800 text-lg">
-                    {editingId === p.id && editingField === 'price' ? (
-                      <div className="relative">
-                        <input 
-                          type="number" 
-                          defaultValue={p.price} 
-                          className="w-32 p-3 bg-white border-2 border-blue-500 rounded-xl outline-none shadow-xl" 
-                          onKeyDown={(e) => e.key === 'Enter' && handleUpdate(p, 'price', (e.target as HTMLInputElement).value)}
-                          onBlur={(e) => handleUpdate(p, 'price', e.target.value)} 
-                          autoFocus 
-                        />
-                      </div>
-                    ) : (
-                      <span onClick={() => { setEditingId(p.id); setEditingField('price'); }} className="cursor-pointer hover:text-blue-600 border-b-2 border-transparent hover:border-blue-200 transition-all pb-1">
-                        ${p.price.toLocaleString('es-MX')}
-                      </span>
-                    )}
+                    ${p.price.toLocaleString('es-MX')}
                   </td>
                   <td className="px-10 py-6 text-center">
-                    {editingId === p.id && editingField === 'stock' ? (
-                      <input 
-                        type="number" 
-                        defaultValue={p.stock} 
-                        className="w-20 p-3 bg-white border-2 border-blue-500 rounded-xl outline-none shadow-xl text-center" 
-                        onKeyDown={(e) => e.key === 'Enter' && handleUpdate(p, 'stock', (e.target as HTMLInputElement).value)}
-                        onBlur={(e) => handleUpdate(p, 'stock', e.target.value)} 
-                        autoFocus 
-                      />
-                    ) : (
-                      <span onClick={() => { setEditingId(p.id); setEditingField('stock'); }} className={`cursor-pointer font-black text-xl px-4 py-2 rounded-2xl transition-all ${p.stock <= 5 ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-700 hover:bg-blue-50 hover:text-blue-600'}`}>
-                        {p.stock}
-                      </span>
-                    )}
+                    <span className={`cursor-pointer font-black text-xl px-4 py-2 rounded-2xl transition-all ${p.stock <= 5 ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-700'}`}>
+                      {p.stock}
+                    </span>
                   </td>
                   <td className="px-10 py-6 text-right">
-                    <button onClick={() => { setEditingId(p.id); setEditingField('price'); }} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all">
+                    <button onClick={() => openEditModal(p)} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all">
                       <i className="fas fa-edit"></i>
                     </button>
                   </td>
@@ -159,10 +205,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       ) : (
         <div className="space-y-8 animate-fadeIn">
-          {orders.map(order => (
+          <div className="flex flex-wrap gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 items-end">
+            <CustomDropdown 
+              label="Filtrar por Estado" 
+              options={['All', 'Pendiente', 'Pagado', 'Enviado', 'Completado']} 
+              selected={filterOrderStatus} 
+              onSelect={setFilterOrderStatus} 
+              placeholder="Todos los Estados"
+            />
+            <button 
+              onClick={() => setFilterOrderStatus('All')}
+              className="flex items-center gap-2 px-8 py-4 bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 rounded-2xl transition-all shadow-lg h-[52px]"
+            >
+              <i className="fas fa-undo"></i> Reiniciar
+            </button>
+          </div>
+          <div className="space-y-8">
+          {filteredOrders.map(order => (
             <div key={order.id} className="bg-white rounded-[3rem] border-2 border-slate-50 p-10 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10 group hover:shadow-2xl transition-all hover:border-white">
               <div className="flex-grow">
                 <div className="flex items-center gap-4 mb-4">
@@ -183,16 +246,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                   <p className="text-3xl font-black text-slate-900">${order.total.toLocaleString('es-MX')}</p>
                 </div>
                 <div className="h-10 w-px bg-slate-200 hidden md:block"></div>
-                <select 
-                  value={order.status} 
-                  onChange={(e) => onUpdateOrder(order.id, e.target.value)}
-                  className="text-[10px] font-black uppercase tracking-widest bg-white border-2 border-slate-100 rounded-2xl p-4 outline-none focus:border-blue-500 transition-all cursor-pointer shadow-sm"
-                >
-                  <option value="Pendiente">Pendiente</option>
-                  <option value="Pagado">Pagado</option>
-                  <option value="Enviado">Enviado</option>
-                  <option value="Completado">Completado</option>
-                </select>
+                <div className="min-w-[180px]">
+                  <CustomDropdown 
+                    label=""
+                    options={['Pendiente', 'Pagado', 'Enviado', 'Completado']}
+                    selected={order.status}
+                    onSelect={(val) => onUpdateOrder(order.id, val)}
+                  />
+                </div>
                 <button 
                   onClick={() => setViewingOrder(order)}
                   className="bg-slate-900 text-white px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl shadow-slate-900/10 active:scale-95"
@@ -202,6 +263,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 
@@ -267,6 +329,99 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                 <div className="w-20 h-20 bg-white/10 rounded-[1.5rem] flex items-center justify-center text-4xl"><i className="fas fa-file-invoice"></i></div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {showEditModal && editingProduct && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-[3rem] max-w-2xl w-full shadow-2xl overflow-hidden animate-scaleIn border border-white">
+            <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tighter">Editar Producto</h2>
+              <button onClick={closeEditModal} className="w-12 h-12 rounded-full hover:bg-white flex items-center justify-center text-slate-400 transition-all shadow-sm"><i className="fas fa-times"></i></button>
+            </div>
+            <form onSubmit={handleSaveProduct} className="p-10 space-y-8">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio *</label>
+                  <input 
+                    type="number" 
+                    required 
+                    step="0.01"
+                    placeholder="0.00"
+                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
+                    value={editForm.price} 
+                    onChange={e => setEditForm({...editForm, price: Number(e.target.value)})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock *</label>
+                  <input 
+                    type="number" 
+                    required 
+                    min="0"
+                    placeholder="0"
+                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
+                    value={editForm.stock} 
+                    onChange={e => setEditForm({...editForm, stock: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Detalles del Producto</label>
+                <textarea 
+                  placeholder="Descripción del producto, características principales..."
+                  className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 resize-none h-24"
+                  value={editForm.description} 
+                  onChange={e => setEditForm({...editForm, description: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Ficha Técnica</h3>
+                <div className="grid grid-cols-1 gap-6">
+                  <CustomDropdown 
+                    label="Categoría"
+                    options={['Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica']}
+                    selected={editForm.category}
+                    onSelect={(val: any) => setEditForm({...editForm, category: val})}
+                    required
+                  />
+                  <CustomDropdown 
+                    label="Marca"
+                    options={['', 'Toyota', 'Nissan', 'Ford', 'Chevrolet', 'Volkswagen', 'Mazda', 'BMW', 'Mercedes-Benz', 'Hyundai', 'Kia']}
+                    selected={editForm.brand}
+                    onSelect={(val) => setEditForm({...editForm, brand: val})}
+                    placeholder="Selecciona una marca"
+                    required
+                  />
+                  <CustomDropdown 
+                    label="Estado"
+                    options={['', 'Premium', 'Estándar', 'Económico', 'Refaccionado']}
+                    selected={editForm.estado}
+                    onSelect={(val) => setEditForm({...editForm, estado: val})}
+                    placeholder="Selecciona un estado"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Compatibilidad</label>
+                <textarea 
+                  placeholder="Marcas y modelos compatibles (separados por comas)..."
+                  className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 resize-none h-24"
+                  value={editForm.compatibleModels} 
+                  onChange={e => setEditForm({...editForm, compatibleModels: e.target.value})}
+                />
+              </div>
+
+              <div className="flex gap-4 pt-6">
+                <button type="button" onClick={closeEditModal} className="flex-grow py-5 bg-slate-50 text-slate-500 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-100 transition-all">Cancelar</button>
+                <button type="submit" className="flex-grow py-5 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all transform hover:-translate-y-1">Guardar Cambios</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

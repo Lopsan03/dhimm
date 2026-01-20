@@ -19,6 +19,8 @@ export interface Product {
   stock: number;
   image: string;
   description: string;
+  estado?: string;
+  compatibleModels?: string[];
 }
 
 export interface CartItem extends Product {
