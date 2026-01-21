@@ -86,7 +86,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div className="space-y-1">
             <div className="flex justify-between">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contraseña</label>
-              <button type="button" className="text-[10px] text-blue-600 font-bold uppercase hover:underline">¿Olvidaste tu contraseña?</button>
+              <Link to="/forgot-password" className="text-[10px] text-blue-600 font-bold uppercase hover:underline">¿Olvidaste tu contraseña?</Link>
             </div>
             <input 
               type="password" 

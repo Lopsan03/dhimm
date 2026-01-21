@@ -11,6 +11,8 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import UserDashboard from './pages/UserDashboard';
 import AdminPanel from './pages/AdminPanel';
 import { Product, CartItem, User, Order } from './types';
@@ -103,6 +105,8 @@ const App: React.FC = () => {
             <Route path="/checkout" element={<Checkout cart={cart} user={user} onComplete={addOrder} clearCart={() => setCart([])} />} />
             <Route path="/login" element={<Login onLogin={handleLogin} />} />
             <Route path="/register" element={<Register onLogin={handleLogin} />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/dashboard/*" element={user ? <UserDashboard user={user} orders={orders.filter(o => o.userId === user.id)} onUpdateUser={handleUpdateUser} /> : <Navigate to="/login" />} />
             <Route path="/admin/*" element={user?.role === 'admin' ? <AdminPanel products={products} orders={orders} onUpdateProduct={(p) => setProducts(products.map(x => x.id === p.id ? p : x))} onUpdateOrder={(id, s) => setOrders(orders.map(o => o.id === id ? { ...o, status: s } : o))} /> : <Navigate to="/" />} />
           </Routes>
