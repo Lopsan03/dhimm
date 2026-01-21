@@ -18,9 +18,6 @@ const ResetPassword: React.FC = () => {
 
     const handleAuthCallback = async () => {
       try {
-        // Log the full URL to see what we're getting
-        console.log('Full URL:', window.location.href);
-        
         // Parse tokens from hash fragment (Supabase puts them after the second #)
         const hash = window.location.hash;
         const hashParams = new URLSearchParams(hash.split('#')[2] || '');
@@ -40,13 +37,9 @@ const ResetPassword: React.FC = () => {
         const type = params.get('type');
         const token = params.get('token');
 
-        console.log('Extracted params:', { type, accessToken: !!accessToken, refreshToken: !!refreshToken, code: !!code });
-
         // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          console.log('Auth state change event:', event, session ? 'session present' : 'no session');
           if (session && mounted && event === 'SIGNED_IN') {
-            console.log('Session details:', { user: session.user.id, expires_at: session.expires_at });
             setCurrentSession(session);
             setSessionReady(true);
           }
@@ -54,24 +47,19 @@ const ResetPassword: React.FC = () => {
 
         // If we have recovery tokens, set the session
         if (type === 'recovery' && accessToken && refreshToken) {
-          console.log('Setting session from recovery tokens...');
-          
           const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
 
           if (sessionError) {
-            console.error('Session set error:', sessionError);
             setError('Enlace de recuperación inválido o expirado. Por favor solicita uno nuevo.');
           } else if (data.session && mounted) {
-            console.log('Recovery session set successfully');
             setCurrentSession(data.session);
             setSessionReady(true);
           }
         } else if (type === 'recovery' && code) {
           // Fallback: try OTP verification
-          console.log('Using verifyOtp with recovery code');
           const { data, error: verifyError } = await supabase.auth.verifyOtp({
             type: 'recovery',
             token_hash: code,
@@ -79,10 +67,8 @@ const ResetPassword: React.FC = () => {
           });
 
           if (verifyError) {
-            console.error('OTP verify error:', verifyError);
             setError('Enlace de recuperación inválido o expirado. Por favor solicita uno nuevo.');
           } else if (data.session && mounted) {
-            console.log('Recovery session established via verifyOtp');
             setCurrentSession(data.session);
             setSessionReady(true);
           }
@@ -99,7 +85,6 @@ const ResetPassword: React.FC = () => {
 
         return () => subscription?.unsubscribe();
       } catch (err: any) {
-        console.error('Auth callback error:', err);
         if (mounted) setError('Error al procesar tu enlace de recuperación.');
       }
     };
@@ -129,20 +114,15 @@ const ResetPassword: React.FC = () => {
     setLoading(true);
 
     try {
-      console.log('Updating password...');
-      
       // Just use the current session - don't try to refresh it
       if (!currentSession) {
         throw new Error('No hay sesión válida. Por favor solicita un nuevo enlace.');
       }
       
-      console.log('Using session for user:', currentSession.user.id);
-      
       // Update password directly
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
       
       if (updateError) {
-        console.error('Update error details:', updateError);
         throw updateError;
       }
 
@@ -152,7 +132,6 @@ const ResetPassword: React.FC = () => {
       await supabase.auth.signOut();
       setTimeout(() => navigate('/login'), 2000);
     } catch (err: any) {
-      console.error('Update password error:', err);
       setError(err.message || 'Error al actualizar la contraseña. Intenta solicitar un nuevo enlace.');
       setLoading(false);
     }

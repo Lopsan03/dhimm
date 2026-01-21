@@ -27,7 +27,6 @@ const ForgotPassword: React.FC = () => {
       setSuccess('Se envió un enlace de recuperación a tu correo. Por favor revisa tu bandeja de entrada.');
       setEmail('');
     } catch (err: any) {
-      console.error('Reset error:', err);
       setError(err.message || 'Error al enviar el enlace de recuperación.');
     } finally {
       setLoading(false);
