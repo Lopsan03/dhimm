@@ -15,6 +15,7 @@ import UserDashboard from './pages/UserDashboard';
 import AdminPanel from './pages/AdminPanel';
 import { Product, CartItem, User, Order } from './types';
 import { MOCK_PRODUCTS, MOCK_ORDERS } from './constants';
+import { supabase } from './services/supabaseClient';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -55,6 +56,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    void supabase.auth.signOut();
     setUser(null);
     localStorage.removeItem('dhimma_user');
   };

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User } from '../types';
+import { supabase } from '../services/supabaseClient';
 
 interface LoginProps {
   onLogin: (u: User) => void;
@@ -10,29 +11,46 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple mock auth logic
-    if (email.includes('admin')) {
-      onLogin({
-        id: 'a1',
-        name: 'Administrador Dhimma',
-        email: email,
-        role: 'admin',
-        addresses: []
-      });
-      navigate('/admin');
-    } else {
-      onLogin({
-        id: 'u1',
-        name: 'Juan Pérez',
-        email: email,
-        role: 'user',
-        addresses: ['AV DE LA JUVENTUD #590, Monterrey']
-      });
-      navigate('/dashboard');
+    setError('');
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      const authUser = data.user;
+      if (!authUser) throw new Error('No se pudo iniciar sesión.');
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, name, email, role, addresses')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const user: User = {
+        id: profileData.id,
+        name: profileData.name || authUser.email?.split('@')[0] || 'Usuario',
+        email: profileData.email,
+        role: profileData.role,
+        addresses: profileData.addresses || []
+      };
+
+      localStorage.setItem('dhimma_user', JSON.stringify(user));
+      onLogin(user);
+
+      navigate(user.role === 'admin' ? '/admin' : '/dashboard');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+      setLoading(false);
     }
   };
 
@@ -46,6 +64,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <h1 className="text-2xl font-bold text-slate-800">Bienvenido de nuevo</h1>
           <p className="text-slate-500 text-sm mt-1">Ingresa a tu cuenta de Dhimma Automotriz</p>
         </div>
+
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-2xl">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
@@ -75,16 +99,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
           <button 
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/20 mt-4"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/20 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Iniciar Sesión
+            {loading ? 'Iniciando...' : 'Iniciar Sesión'}
           </button>
         </form>
 
         <div className="mt-8 pt-8 border-t border-slate-50 text-center">
           <p className="text-sm text-slate-500">¿No tienes cuenta? <Link to="/register" className="text-blue-600 font-bold hover:underline">Regístrate gratis</Link></p>
         </div>
-        <p className="text-[10px] text-center text-slate-300 mt-4">Pista: Usa 'admin' en el email para entrar como administrador.</p>
       </div>
     </div>
   );
