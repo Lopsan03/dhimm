@@ -22,7 +22,20 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
   ]);
   const [newReview, setNewReview] = useState({ name: '', comment: '' });
 
-  if (!product) return null;
+  if (!product) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-24 text-center">
+        <div className="bg-white rounded-[3rem] p-16 border-2 border-slate-100 shadow-lg">
+          <i className="fas fa-box-open text-6xl text-slate-300 mb-6"></i>
+          <h2 className="text-3xl font-black text-slate-900 mb-4">Producto no encontrado</h2>
+          <p className="text-slate-500 mb-8">El producto que buscas no está disponible en este momento.</p>
+          <Link to="/catalog" className="inline-block bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 transition-all">
+            Ver Catálogo
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const handleBuyNow = () => {
     onAddToCart(product);

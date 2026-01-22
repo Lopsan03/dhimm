@@ -27,7 +27,7 @@ export interface CartItem extends Product {
   quantity: number;
 }
 
-export type OrderStatus = 'Pendiente' | 'Pagado' | 'Enviado' | 'Completado';
+export type OrderStatus = 'Pagado' | 'Enviado' | 'Completado';
 
 export interface Order {
   id: string;

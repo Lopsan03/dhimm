@@ -29,7 +29,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-  const pendingOrders = orders.filter(o => o.status === 'Pendiente').length;
+  const pendingOrders = orders.filter(o => o.status === 'Pagado').length;
 
   const filteredProducts = filterCategory === 'All' 
     ? products 
@@ -41,7 +41,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
 
   const OrderStatusBadge = ({ status }: { status: string }) => {
     const colors: Record<string, string> = {
-      'Pendiente': 'bg-orange-100 text-orange-600',
       'Pagado': 'bg-blue-100 text-blue-600',
       'Enviado': 'bg-indigo-100 text-indigo-600',
       'Completado': 'bg-green-100 text-green-600'
@@ -212,7 +211,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
           <div className="flex flex-wrap gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 items-end">
             <CustomDropdown 
               label="Filtrar por Estado" 
-              options={['All', 'Pendiente', 'Pagado', 'Enviado', 'Completado']} 
+              options={['All', 'Pagado', 'Enviado', 'Completado']} 
               selected={filterOrderStatus} 
               onSelect={setFilterOrderStatus} 
               placeholder="Todos los Estados"
@@ -229,7 +228,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
             <div key={order.id} className="bg-white rounded-[3rem] border-2 border-slate-50 p-10 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10 group hover:shadow-2xl transition-all hover:border-white">
               <div className="flex-grow">
                 <div className="flex items-center gap-4 mb-4">
-                  <h3 className="font-mono font-black text-blue-600 tracking-tighter text-xl">{order.id}</h3>
                   <OrderStatusBadge status={order.status} />
                 </div>
                 <div className="flex items-center gap-4">
@@ -249,7 +247,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                 <div className="min-w-[180px]">
                   <CustomDropdown 
                     label=""
-                    options={['Pendiente', 'Pagado', 'Enviado', 'Completado']}
+                    options={['Pagado', 'Enviado', 'Completado']}
                     selected={order.status}
                     onSelect={(val) => onUpdateOrder(order.id, val)}
                   />
@@ -275,7 +273,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
               <div className="flex justify-between items-start mb-12">
                 <div>
                   <h2 className="text-4xl font-black text-slate-900 leading-none tracking-tighter italic">Resumen del Pedido</h2>
-                  <p className="text-blue-600 font-mono font-black tracking-tighter text-2xl mt-2">{viewingOrder.id}</p>
                 </div>
                 <button onClick={() => setViewingOrder(null)} className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-all shadow-inner"><i className="fas fa-times text-xl"></i></button>
               </div>
@@ -312,7 +309,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                         <img src={item.image} className="w-full h-full object-cover" alt="" />
                       </div>
                       <div>
-                        <Link to={`/product/${item.id}`} className="font-black text-slate-900 hover:text-blue-600 text-lg tracking-tighter block">{item.name}</Link>
+                        <Link to={`/product/${item.id}`} onClick={() => setViewingOrder(null)} className="font-black text-slate-900 hover:text-blue-600 text-lg tracking-tighter block">{item.name}</Link>
                         <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mt-1">Cantidad: {item.quantity}</p>
                       </div>
                     </div>

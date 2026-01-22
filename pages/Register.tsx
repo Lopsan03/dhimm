@@ -26,15 +26,13 @@ const Register: React.FC<RegisterProps> = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      const role = formData.email.toLowerCase().includes('admin') ? 'admin' : 'user';
-
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.pass,
         options: {
           data: {
             name: formData.name,
-            role
+            role: 'user'
           }
         }
       });
@@ -47,7 +45,7 @@ const Register: React.FC<RegisterProps> = ({ onLogin }) => {
         id: authUser.id,
         name: formData.name,
         email: formData.email,
-        role,
+        role: 'user',
         addresses: []
       };
 
@@ -59,7 +57,7 @@ const Register: React.FC<RegisterProps> = ({ onLogin }) => {
 
       localStorage.setItem('dhimma_user', JSON.stringify(profile));
       onLogin(profile);
-      navigate('/dashboard');
+      navigate('/');
     } catch (err: any) {
       console.error('Registration error:', err);
       setError(err.message || 'Error al registrar. Intenta de nuevo.');

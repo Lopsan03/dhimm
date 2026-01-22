@@ -23,6 +23,9 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   // Build a map of local images keyed by filename (without extension)
   const imageModules = import.meta.glob('./images/*.{png,jpg,jpeg,webp,JPG,PNG,WEBP}', { eager: true }) as Record<string, any>;
   const imageMap: Record<string, string> = {};
@@ -32,20 +35,70 @@ const App: React.FC = () => {
     if (base && typeof url === 'string') imageMap[base] = url;
   }
 
-  // Initialize products using matching local image by product name when available
-  const [products, setProducts] = useState<Product[]>(
-    MOCK_PRODUCTS.map(p => ({ ...p, image: imageMap[p.name] ?? p.image }))
-  );
-
-  // Ensure new images dropped into /images are applied without losing state
-  const imageKeys = Object.keys(imageMap).join('|');
+  // Fetch products and orders from Supabase on mount
   useEffect(() => {
-    setProducts(prev => prev.map(p => (
-      imageMap[p.name] && p.image !== imageMap[p.name]
-        ? { ...p, image: imageMap[p.name] }
-        : p
-    )));
-  }, [imageKeys]);
+    const fetchData = async () => {
+      try {
+        // Fetch products
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (productsError) throw productsError;
+
+        const productsWithImages = (productsData || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          brand: p.brand,
+          compatibleModels: p.compatible_models || [],
+          price: parseFloat(p.price),
+          stock: p.stock,
+          image: imageMap[p.name] || p.image,
+          description: p.description || '',
+          estado: p.estado || ''
+        }));
+
+        setProducts(productsWithImages);
+
+        // Fetch orders if user is logged in
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: ordersData, error: ordersError } = await supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (ordersError) throw ordersError;
+
+          const parsedOrders = (ordersData || []).map((o: any) => ({
+            id: o.id,
+            userId: o.user_id,
+            userName: o.user_name,
+            userEmail: o.user_email,
+            items: o.items || [],
+            total: parseFloat(o.total),
+            status: o.status,
+            date: o.created_at,
+            shippingAddress: o.shipping_address
+          }));
+
+          setOrders(parsedOrders);
+        } else {
+          setOrders([]);
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setProducts(MOCK_PRODUCTS.map(p => ({ ...p, image: imageMap[p.name] ?? p.image })));
+        setOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('dhimma_user');
@@ -84,12 +137,97 @@ const App: React.FC = () => {
 
   const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.id !== id));
 
-  const addOrder = (order: Order) => {
-    setOrders([order, ...orders]);
+  const addOrder = async (order: Order) => {
+    // Save to Supabase
+    try {
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: order.userId,
+          user_name: order.userName,
+          user_email: order.userEmail,
+          items: order.items,
+          total: order.total,
+          status: order.status,
+          shipping_address: order.shippingAddress
+        });
+
+      if (orderError) throw orderError;
+
+      // Update local state
+      setOrders([order, ...orders]);
+    } catch (err) {
+      console.error('Error saving order:', err);
+      alert('Error al guardar el pedido. Por favor intenta de nuevo.');
+      return;
+    }
+
+    // Update stock in Supabase and local state
+    order.items.forEach(async (item) => {
+      try {
+        await supabase
+          .from('products')
+          .update({ stock: item.stock - item.quantity })
+          .eq('id', item.id);
+      } catch (err) {
+        console.error('Error updating stock:', err);
+      }
+    });
+
     setProducts(prev => prev.map(p => {
       const oi = order.items.find(i => i.id === p.id);
       return oi ? { ...p, stock: p.stock - oi.quantity } : p;
     }));
+  };
+
+  const handleUpdateProduct = async (updatedProduct: Product) => {
+    if (!user) {
+      alert('You must be logged in to update products.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          name: updatedProduct.name,
+          category: updatedProduct.category,
+          brand: updatedProduct.brand,
+          compatible_models: updatedProduct.compatibleModels,
+          price: updatedProduct.price,
+          stock: updatedProduct.stock,
+          image: updatedProduct.image,
+          description: updatedProduct.description,
+          estado: updatedProduct.estado,
+          updated_by_admin_id: user.id
+        })
+        .eq('id', updatedProduct.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    } catch (err) {
+      console.error('Error updating product:', err);
+      alert('Error al actualizar el producto. Por favor intenta de nuevo.');
+    }
+  };
+
+  const handleUpdateOrder = async (orderId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Update local state
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    } catch (err) {
+      console.error('Error updating order:', err);
+      alert('Error al actualizar el pedido. Por favor intenta de nuevo.');
+    }
   };
 
   return (
@@ -108,7 +246,7 @@ const App: React.FC = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/dashboard/*" element={user ? <UserDashboard user={user} orders={orders.filter(o => o.userId === user.id)} onUpdateUser={handleUpdateUser} /> : <Navigate to="/login" />} />
-            <Route path="/admin/*" element={user?.role === 'admin' ? <AdminPanel products={products} orders={orders} onUpdateProduct={(p) => setProducts(products.map(x => x.id === p.id ? p : x))} onUpdateOrder={(id, s) => setOrders(orders.map(o => o.id === id ? { ...o, status: s } : o))} /> : <Navigate to="/" />} />
+            <Route path="/admin/*" element={user?.role === 'admin' ? <AdminPanel products={products} orders={orders} onUpdateProduct={handleUpdateProduct} onUpdateOrder={handleUpdateOrder} /> : <Navigate to="/" />} />
           </Routes>
         </main>
         <MobileBottomNav />

@@ -22,12 +22,11 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, orders, onUpdateUse
     country: 'México'
   });
 
-  const pendingOrders = orders.filter(o => ['Pendiente', 'Pagado'].includes(o.status));
+  const pendingOrders = orders.filter(o => o.status === 'Pagado');
   const completedOrders = orders.filter(o => ['Enviado', 'Completado'].includes(o.status));
 
   const OrderStatusBadge = ({ status }: { status: string }) => {
     const colors: Record<string, string> = {
-      'Pendiente': 'bg-orange-100 text-orange-600',
       'Pagado': 'bg-blue-100 text-blue-600',
       'Enviado': 'bg-indigo-100 text-indigo-600',
       'Completado': 'bg-green-100 text-green-600'
@@ -98,11 +97,10 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, orders, onUpdateUse
           {list.map(order => (
             <div key={order.id} className="bg-white rounded-[2rem] border-2 border-slate-50 p-8 shadow-sm hover:shadow-xl transition-all">
               <div className="flex flex-col sm:flex-row justify-between gap-6 mb-6">
-                <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ID Pedido</p><p className="font-mono text-blue-600 font-bold">{order.id}</p></div>
                 <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estado</p><OrderStatusBadge status={order.status} /></div>
                 <div className="text-right"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total MXN</p><p className="text-xl font-black text-slate-900">${order.total.toLocaleString('es-MX')}</p></div>
               </div>
-              <div className="border-t border-slate-50 pt-6"><div className="flex flex-wrap gap-2">{order.items.map(item => (<span key={item.id} className="text-[10px] font-bold bg-slate-50 px-4 py-2 rounded-full border border-slate-100 text-slate-600">{item.quantity}x {item.name}</span>))}</div></div>
+              <div className="border-t border-slate-50 pt-6"><div className="flex flex-wrap gap-2">{order.items.map(item => (<Link key={item.id} to={`/product/${item.id}`} className="text-[10px] font-bold bg-slate-50 px-4 py-2 rounded-full border border-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all">{item.quantity}x {item.name}</Link>))}</div></div>
             </div>
           ))}
         </div>
