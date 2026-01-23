@@ -74,10 +74,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderData)
         }).catch(err => console.warn('Failed to store pending order data:', err));
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderData)
-        });
       } catch (err) {
         console.warn('⚠️ Could not store order on backend:', err);
         // Continue anyway; webhook will use defaults
