@@ -171,6 +171,17 @@ app.post('/api/pending-orders/:orderId', express.json(), async (req, res) => {
           total: orderData.total || 0,
           shipping_address: orderData.shippingAddress || '',
           status: 'Pendiente'
+        }
+      ], { onConflict: 'id' });
+
+    if (upsertErr) {
+      console.error('Error upserting pending order:', upsertErr);
+      return res.status(500).json({ error: 'Failed to store pending order' });
+    }
+
+    // Also keep a short-lived in-memory copy (best effort)
+    pendingOrders.set(orderId, orderData);
+    setTimeout(() => pendingOrders.delete(orderId), 600000);
 
     res.json({ success: true });
   } catch (e) {
