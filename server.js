@@ -352,7 +352,7 @@ app.post('/api/mp/webhook', async (req, res) => {
       .single();
 
     if (!existingOrder) {
-      // If record doesn't exist, insert a completed order with best-effort data
+      // If record doesn't exist, insert an approved order with best-effort data
       const pendingOrderData = pendingOrders.get(orderId) || {};
       const userIdForInsert = pendingOrderData.userId && pendingOrderData.userId !== 'guest' ? pendingOrderData.userId : GUEST_USER_ID;
 
@@ -366,17 +366,17 @@ app.post('/api/mp/webhook', async (req, res) => {
           items: pendingOrderData.items || [],
           total: pendingOrderData.total || 0,
           shipping_address: pendingOrderData.shippingAddress || '',
-          status: 'completed'
+          status: 'approved'
         });
       if (insertError) {
         console.error('❌ Error creating order from webhook:', insertError);
         return res.sendStatus(500);
       }
     } else {
-      // If record exists (created at checkout), mark it as completed
+      // If record exists (created at checkout), mark it as approved
       const { error: updateError } = await supabaseAdmin
         .from('orders')
-        .update({ status: 'completed' })
+        .update({ status: 'approved' })
         .eq('id', orderId);
       if (updateError) {
         console.error('❌ Error updating order status:', updateError);
