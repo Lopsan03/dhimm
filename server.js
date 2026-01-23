@@ -146,7 +146,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Store order data from checkout (called before payment)
-app.post('/api/pending-orders/:orderId', express.json(), async (req, res) => {
+app.post('/api/pending-orders/:orderId', express.json(), (req, res) => {
   const { orderId } = req.params;
   const orderData = req.body || {};
 
@@ -154,34 +154,18 @@ app.post('/api/pending-orders/:orderId', express.json(), async (req, res) => {
     return res.status(400).json({ error: 'Missing orderId' });
   }
 
-  // Resolve userId (real user or guest)
-  const userId = orderData.userId && orderData.userId !== 'guest' ? orderData.userId : GUEST_USER_ID;
-
   try {
-    // Persist a pending order record so any replica can read it later
-    const { error: upsertErr } = await (supabaseAdmin || supabase)
-      .from('orders')
-      .upsert([
-        {
-          id: orderId,
-          user_id: userId,
-          user_name: orderData.userName || 'Cliente',
-          user_email: orderData.userEmail || '',
-          items: orderData.items || [],
-          total: orderData.total || 0,
-          shipping_address: orderData.shippingAddress || '',
-          status: 'Pendiente'
-        }
-      ], { onConflict: 'id' });
-
-    if (upsertErr) {
-      console.error('Error upserting pending order:', upsertErr);
-      return res.status(500).json({ error: 'Failed to store pending order' });
-    }
-
-    // Also keep a short-lived in-memory copy (best effort)
+    // Store order data in-memory for webhook to retrieve later
+    // (short-lived; webhook must process within 10 minutes)
     pendingOrders.set(orderId, orderData);
-    setTimeout(() => pendingOrders.delete(orderId), 600000);
+    setTimeout(() => pendingOrders.delete(orderId), 600000); // 10 min TTL
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Error storing pending order:', e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
     res.json({ success: true });
   } catch (e) {

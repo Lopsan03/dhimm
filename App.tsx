@@ -51,7 +51,8 @@ const App: React.FC = () => {
 
   const fetchOrders = async (userId: string) => {
     // Fetch via backend (uses service role) to bypass RLS restrictions
-    const resp = await fetch(`http://localhost:3001/api/user-orders/${userId}`);
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const resp = await fetch(`${backendUrl}/api/user-orders/${userId}`);
     if (!resp.ok) {
       console.error('Failed to fetch orders from backend', resp.status);
       setOrders([]);

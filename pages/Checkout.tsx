@@ -67,7 +67,13 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
       // Send order data to backend for webhook to use
       try {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        // Only send pending order data to backend; don't create order yet
+        // Order will be created when webhook receives payment approval
         await fetch(`${backendUrl}/api/pending-orders/${orderId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData)
+        }).catch(err => console.warn('Failed to store pending order data:', err));
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderData)
