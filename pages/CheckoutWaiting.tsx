@@ -41,11 +41,12 @@ const CheckoutWaiting: React.FC = () => {
           return;
         }
         const order = await response.json();
-        setStatus(order.status);
+        const normalized = (order.status || '').toString().toLowerCase();
+        setStatus(normalized);
         setNotFoundCount(0); // Reset 404 counter on successful fetch
 
-        // Redirect when an order exists (webhook only creates on approved payments)
-        if (order && order.id) {
+        // Redirect only when payment is approved/completed
+        if (order && order.id && ['approved', 'completed', 'paid', 'pagado'].includes(normalized)) {
           sessionStorage.removeItem('pendingOrderId');
           sessionStorage.removeItem('orderData');
           sessionStorage.removeItem('webhookUrl');

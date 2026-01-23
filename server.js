@@ -146,20 +146,48 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Store order data from checkout (called before payment)
-app.post('/api/pending-orders/:orderId', express.json(), (req, res) => {
+app.post('/api/pending-orders/:orderId', express.json(), async (req, res) => {
   const { orderId } = req.params;
-  const orderData = req.body;
-  
-  if (!orderId || !orderData) {
-    return res.status(400).json({ error: 'Missing orderId or order data' });
+  const orderData = req.body || {};
+
+  if (!orderId) {
+    return res.status(400).json({ error: 'Missing orderId' });
   }
 
-  // Store for max 10 minutes (600000ms), then auto-delete
-  pendingOrders.set(orderId, orderData);
-  setTimeout(() => pendingOrders.delete(orderId), 600000);
+  // Resolve userId (real user or guest)
+  const userId = orderData.userId && orderData.userId !== 'guest' ? orderData.userId : GUEST_USER_ID;
 
-  console.log(`📦 Stored pending order: ${orderId}`);
-  res.json({ success: true });
+  try {
+    // Persist a pending order record so any replica can read it later
+    const { error: upsertErr } = await (supabaseAdmin || supabase)
+      .from('orders')
+      .upsert([
+        {
+          id: orderId,
+          user_id: userId,
+          user_name: orderData.userName || 'Cliente',
+          user_email: orderData.userEmail || '',
+          items: orderData.items || [],
+          total: orderData.total || 0,
+          shipping_address: orderData.shippingAddress || '',
+          status: 'pending'
+        }
+      ], { onConflict: 'id' });
+
+    if (upsertErr) {
+      console.error('Error upserting pending order:', upsertErr);
+      return res.status(500).json({ error: 'Failed to store pending order' });
+    }
+
+    // Also keep a short-lived in-memory copy (best effort)
+    pendingOrders.set(orderId, orderData);
+    setTimeout(() => pendingOrders.delete(orderId), 600000);
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Error storing pending order:', e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 app.get('/api/orders/:orderId', async (req, res) => {
@@ -316,48 +344,48 @@ app.post('/api/mp/webhook', async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Create order if it doesn't exist
-    const { data: existingOrder } = await supabase
+    // Create or update order status based on existing record
+    const { data: existingOrder } = await (supabaseAdmin || supabase)
       .from('orders')
       .select('id')
       .eq('id', orderId)
       .single();
 
     if (!existingOrder) {
-      console.log('📝 Creating order from webhook:', orderId);
-      
-      // Fetch stored order data from checkout
-      const pendingOrderData = pendingOrders.get(orderId);
-      const orderData = pendingOrderData || {};
-      
-      // Use real data if available, otherwise defaults
-      const userId = orderData.userId && orderData.userId !== 'guest' 
-        ? orderData.userId 
-        : GUEST_USER_ID;
-      
+      // If record doesn't exist, insert a completed order with best-effort data
+      const pendingOrderData = pendingOrders.get(orderId) || {};
+      const userIdForInsert = pendingOrderData.userId && pendingOrderData.userId !== 'guest' ? pendingOrderData.userId : GUEST_USER_ID;
+
       const { error: insertError } = await supabaseAdmin
         .from('orders')
         .insert({
           id: orderId,
-          user_id: userId,
-          user_name: orderData.userName || 'Cliente',
-          user_email: orderData.userEmail || '',
-          items: orderData.items || [],
-          total: orderData.total || 0,
-          shipping_address: orderData.shippingAddress || ''
+          user_id: userIdForInsert,
+          user_name: pendingOrderData.userName || 'Cliente',
+          user_email: pendingOrderData.userEmail || '',
+          items: pendingOrderData.items || [],
+          total: pendingOrderData.total || 0,
+          shipping_address: pendingOrderData.shippingAddress || '',
+          status: 'completed'
         });
-
       if (insertError) {
         console.error('❌ Error creating order from webhook:', insertError);
         return res.sendStatus(500);
       }
-      
-      // Clean up pending order data
-      pendingOrders.delete(orderId);
-      console.log('✅ Order created:', orderId);
     } else {
-      console.log('ℹ️ Order already exists; skipping status update');
+      // If record exists (created at checkout), mark it as completed
+      const { error: updateError } = await supabaseAdmin
+        .from('orders')
+        .update({ status: 'completed' })
+        .eq('id', orderId);
+      if (updateError) {
+        console.error('❌ Error updating order status:', updateError);
+        return res.sendStatus(500);
+      }
     }
+
+    // Clean up pending order data (best effort)
+    pendingOrders.delete(orderId);
 
     res.sendStatus(200);
   } catch (err) {
