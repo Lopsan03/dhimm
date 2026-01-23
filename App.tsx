@@ -9,6 +9,9 @@ import Catalog from './pages/Catalog';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import CheckoutWaiting from './pages/CheckoutWaiting';
+import CheckoutSuccess from './pages/CheckoutSuccess';
+import CheckoutFailure from './pages/CheckoutFailure';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
@@ -35,11 +38,47 @@ const App: React.FC = () => {
     if (base && typeof url === 'string') imageMap[base] = url;
   }
 
-  // Fetch products and orders from Supabase on mount
+  // Normalize status values (Spanish/English/upper) to canonical values
+  const normalizeStatus = (status: string) => {
+    const s = (status || '').toString().toLowerCase();
+    if (['pendiente', 'pending'].includes(s)) return 'pending';
+    if (['aprobado', 'approved'].includes(s)) return 'approved';
+    if (['completado', 'completed', 'pagado', 'paid'].includes(s)) return 'completed';
+    if (['rechazado', 'rejected'].includes(s)) return 'rejected';
+    if (['enviado', 'shipped'].includes(s)) return 'shipped';
+    return s || 'pending';
+  };
+
+  const fetchOrders = async (userId: string) => {
+    // Fetch via backend (uses service role) to bypass RLS restrictions
+    const resp = await fetch(`http://localhost:3001/api/user-orders/${userId}`);
+    if (!resp.ok) {
+      console.error('Failed to fetch orders from backend', resp.status);
+      setOrders([]);
+      return;
+    }
+    const ordersData = await resp.json();
+
+    const parsedOrders = (ordersData || []).map((o: any) => ({
+      id: o.id,
+      userId: o.user_id,
+      userName: o.user_name,
+      userEmail: o.user_email,
+      items: o.items || [],
+      total: parseFloat(o.total),
+      status: normalizeStatus(o.status),
+      date: o.created_at,
+      shippingAddress: o.shipping_address
+    }));
+
+    console.log('[orders] fetched for user', userId, 'count', parsedOrders.length);
+    setOrders(parsedOrders);
+  };
+
+  // Fetch products and orders on mount; refresh orders on auth changes
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch products
         const { data: productsData, error: productsError } = await supabase
           .from('products')
           .select('*')
@@ -62,29 +101,9 @@ const App: React.FC = () => {
 
         setProducts(productsWithImages);
 
-        // Fetch orders if user is logged in
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const { data: ordersData, error: ordersError } = await supabase
-            .from('orders')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-          if (ordersError) throw ordersError;
-
-          const parsedOrders = (ordersData || []).map((o: any) => ({
-            id: o.id,
-            userId: o.user_id,
-            userName: o.user_name,
-            userEmail: o.user_email,
-            items: o.items || [],
-            total: parseFloat(o.total),
-            status: o.status,
-            date: o.created_at,
-            shippingAddress: o.shipping_address
-          }));
-
-          setOrders(parsedOrders);
+        if (session?.user?.id) {
+          await fetchOrders(session.user.id);
         } else {
           setOrders([]);
         }
@@ -98,11 +117,31 @@ const App: React.FC = () => {
     };
 
     fetchData();
-  }, [user]);
 
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user?.id) {
+        console.log('[auth] change user', session.user.id);
+        await fetchOrders(session.user.id);
+      } else {
+        setOrders([]);
+      }
+    });
+
+    return () => {
+      listener?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  // Restore user from localStorage on first load
   useEffect(() => {
     const savedUser = localStorage.getItem('dhimma_user');
-    if (savedUser) setUser(JSON.parse(savedUser));
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error('Error parsing saved user', e);
+      }
+    }
   }, []);
 
   const handleLogin = (u: User) => {
@@ -113,6 +152,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     void supabase.auth.signOut();
     setUser(null);
+    setOrders([]);
     localStorage.removeItem('dhimma_user');
   };
 
@@ -143,6 +183,7 @@ const App: React.FC = () => {
       const { error: orderError } = await supabase
         .from('orders')
         .insert({
+          id: order.id,
           user_id: order.userId,
           user_name: order.userName,
           user_email: order.userEmail,
@@ -241,6 +282,9 @@ const App: React.FC = () => {
             <Route path="/product/:id" element={<ProductDetail products={products} onAddToCart={addToCart} />} />
             <Route path="/cart" element={<Cart cart={cart} updateQuantity={updateQuantity} remove={removeFromCart} />} />
             <Route path="/checkout" element={<Checkout cart={cart} user={user} onComplete={addOrder} clearCart={() => setCart([])} />} />
+            <Route path="/checkout/waiting/:orderId" element={<CheckoutWaiting />} />
+            <Route path="/checkout/success" element={<CheckoutSuccess />} />
+            <Route path="/checkout/failure" element={<CheckoutFailure />} />
             <Route path="/login" element={<Login onLogin={handleLogin} />} />
             <Route path="/register" element={<Register onLogin={handleLogin} />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />

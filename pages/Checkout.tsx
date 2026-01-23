@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CartItem, User, Order } from '../types';
+import { createPreference, openCheckout } from '../services/mercadoPagoService';
 
 interface CheckoutProps {
   cart: CartItem[];
@@ -13,16 +14,13 @@ interface CheckoutProps {
 const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
     address: user?.addresses[0] || '',
     city: 'Monterrey',
     zip: '',
-    cardNum: '',
-    expiry: '',
-    cvv: '',
-    coupon: ''
   });
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -33,25 +31,83 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleFinish = () => {
-    const newOrder: Order = {
-      id: `ORD-${Math.floor(Math.random() * 900000) + 100000}`,
-      userId: user?.id || 'guest',
-      userName: formData.name,
-      userEmail: formData.email,
-      items: [...cart],
-      total: total,
-      status: 'Pendiente',
-      date: new Date().toISOString().split('T')[0],
-      shippingAddress: `${formData.address}, ${formData.city}, CP ${formData.zip}`
-    };
-    onComplete(newOrder);
-    clearCart();
-    setStep(3);
+  const generateOrderId = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    const rand = Math.floor(Math.random() * 1_000_000);
+    return `ord-${Date.now()}-${rand}`;
   };
 
+  const handlePayWithMercadoPago = async () => {
+    if (!formData.name || !formData.email || !formData.address || !formData.zip) {
+      alert('Por favor completa todos los campos de envío');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Generate order ID (will be created by webhook after payment is approved)
+      const orderId = generateOrderId();
+      
+      const orderData = {
+        id: orderId,
+        userId: user?.id || 'guest',
+        userName: formData.name,
+        userEmail: formData.email,
+        items: cart,
+        total: total,
+        shippingAddress: `${formData.address}, ${formData.city}, CP ${formData.zip}`
+      };
+      
+      // Store order details in session for waiting page
+      sessionStorage.setItem('pendingOrderId', orderId);
+      sessionStorage.setItem('orderData', JSON.stringify(orderData));
+
+      // Send order data to backend for webhook to use
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        await fetch(`${backendUrl}/api/pending-orders/${orderId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData)
+        });
+      } catch (err) {
+        console.warn('⚠️ Could not store order on backend:', err);
+        // Continue anyway; webhook will use defaults
+      }
+
+      // Create Mercado Pago preference with notification_url
+      const preference = await createPreference(
+        cart,
+        { name: formData.name, email: formData.email },
+        { address: formData.address, city: formData.city, zip: formData.zip, cost: shipping },
+        orderId
+      );
+
+      // Open Mercado Pago checkout in popup
+      openCheckout(preference.id, () => {
+        // Popup closed - navigate to waiting page where webhook will create the order
+        console.log('Popup closed, navigating to waiting page...');
+        navigate(`/checkout/waiting/${orderId}`);
+      });
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      alert('Error al procesar el pago. Por favor intenta de nuevo.');
+      setLoading(false);
+    }
+  };
+
+  // Redirect to cart if empty
+  React.useEffect(() => {
+    if (cart.length === 0 && step !== 3) {
+      navigate('/cart');
+    }
+  }, [cart.length, step, navigate]);
+
   if (cart.length === 0 && step !== 3) {
-    navigate('/cart');
     return null;
   }
 
@@ -98,43 +154,63 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
 
       {step === 2 && (
         <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm animate-fadeIn">
-          <h2 className="text-2xl font-bold mb-6">Información de Pago</h2>
-          <div className="space-y-6">
-            <div className="flex gap-4 p-4 border-2 border-blue-600 bg-blue-50 rounded-2xl">
-              <div className="w-6 h-6 rounded-full border-4 border-blue-600"></div>
-              <div>
-                <p className="font-bold text-slate-800">Tarjeta de Crédito / Débito</p>
-                <div className="flex gap-2 mt-1">
-                  <i className="fab fa-cc-visa text-2xl text-slate-400"></i>
-                  <i className="fab fa-cc-mastercard text-2xl text-slate-400"></i>
+          <h2 className="text-2xl font-bold mb-6">Método de Pago</h2>
+          
+          {/* Mercado Pago Option */}
+          <div className="space-y-4">
+            <div className="border-2 border-blue-600 bg-blue-50 rounded-2xl p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-6 h-6 rounded-full bg-blue-600"></div>
+                <div className="flex-grow">
+                  <p className="font-bold text-slate-800 text-lg">Pagar con Mercado Pago</p>
+                  <p className="text-sm text-slate-600">Tarjetas, transferencias y más opciones seguras</p>
                 </div>
+                <img src="https://http2.mlstatic.com/storage/logos-api-admin/a5f047d0-9be0-11ec-aad4-c3381f368aaf-m.svg" alt="Mercado Pago" className="h-8" />
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Número de Tarjeta</label>
-              <input type="text" name="cardNum" placeholder="0000 0000 0000 0000" onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Expiración (MM/YY)</label>
-                <input type="text" name="expiry" placeholder="MM/YY" onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl" />
+
+            {/* Summary */}
+            <div className="bg-slate-50 rounded-2xl p-6 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Subtotal</span>
+                <span className="font-bold text-slate-800">${subtotal.toLocaleString('es-MX')}</span>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">CVV</label>
-                <input type="password" name="cvv" placeholder="123" onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl" />
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Envío</span>
+                <span className="font-bold text-slate-800">{shipping === 0 ? 'Gratis' : `$${shipping}`}</span>
               </div>
-            </div>
-            <div className="space-y-2 border-t border-slate-100 pt-6">
-              <label className="text-sm font-bold text-slate-700">Cupón de descuento</label>
-              <div className="flex gap-2">
-                <input type="text" name="coupon" placeholder="CUPON10" onChange={handleInputChange} className="flex-grow p-3 bg-slate-50 border border-slate-200 rounded-xl" />
-                <button className="bg-slate-200 px-6 rounded-xl text-xs font-bold uppercase">Aplicar</button>
+              <div className="border-t border-slate-200 pt-3 flex justify-between">
+                <span className="font-black text-slate-900 text-lg">Total</span>
+                <span className="font-black text-slate-900 text-2xl">${total.toLocaleString('es-MX')}</span>
               </div>
             </div>
           </div>
+
           <div className="mt-8 flex gap-4">
-            <button onClick={() => setStep(1)} className="flex-grow bg-slate-100 py-4 rounded-2xl font-bold">Atrás</button>
-            <button onClick={handleFinish} className="flex-grow bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/20">Finalizar Compra</button>
+            <button 
+              onClick={() => setStep(1)} 
+              className="flex-grow bg-slate-100 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+              disabled={loading}
+            >
+              Atrás
+            </button>
+            <button 
+              onClick={handlePayWithMercadoPago} 
+              className="flex-grow bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i>
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-lock"></i>
+                  Proceder al Pago
+                </>
+              )}
+            </button>
           </div>
         </div>
       )}

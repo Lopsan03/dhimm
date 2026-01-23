@@ -29,7 +29,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-  const pendingOrders = orders.filter(o => o.status === 'Pagado').length;
+  const pendingOrders = orders.filter(o => o.status === 'pending').length;
 
   const filteredProducts = filterCategory === 'All' 
     ? products 
@@ -41,11 +41,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
 
   const OrderStatusBadge = ({ status }: { status: string }) => {
     const colors: Record<string, string> = {
-      'Pagado': 'bg-blue-100 text-blue-600',
-      'Enviado': 'bg-indigo-100 text-indigo-600',
-      'Completado': 'bg-green-100 text-green-600'
+      pending: 'bg-yellow-100 text-yellow-600',
+      approved: 'bg-blue-100 text-blue-600',
+      shipped: 'bg-indigo-100 text-indigo-600',
+      completed: 'bg-green-100 text-green-600',
+      rejected: 'bg-red-100 text-red-600'
     };
-    return <span className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest ${colors[status]}`}>{status}</span>;
+    return <span className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest ${colors[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
   };
 
   const openEditModal = (product: Product) => {
@@ -211,7 +213,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
           <div className="flex flex-wrap gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 items-end">
             <CustomDropdown 
               label="Filtrar por Estado" 
-              options={['All', 'Pagado', 'Enviado', 'Completado']} 
+              options={['All', 'pending', 'approved', 'shipped', 'completed', 'rejected']} 
               selected={filterOrderStatus} 
               onSelect={setFilterOrderStatus} 
               placeholder="Todos los Estados"

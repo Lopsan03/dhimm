@@ -22,14 +22,16 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, orders, onUpdateUse
     country: 'México'
   });
 
-  const pendingOrders = orders.filter(o => o.status === 'Pagado');
-  const completedOrders = orders.filter(o => ['Enviado', 'Completado'].includes(o.status));
+  const pendingOrders = orders.filter(o => o.status === 'pending');
+  const completedOrders = orders.filter(o => ['approved', 'shipped', 'completed'].includes(o.status));
 
   const OrderStatusBadge = ({ status }: { status: string }) => {
     const colors: Record<string, string> = {
-      'Pagado': 'bg-blue-100 text-blue-600',
-      'Enviado': 'bg-indigo-100 text-indigo-600',
-      'Completado': 'bg-green-100 text-green-600'
+      pending: 'bg-yellow-100 text-yellow-600',
+      approved: 'bg-blue-100 text-blue-600',
+      shipped: 'bg-indigo-100 text-indigo-600',
+      completed: 'bg-green-100 text-green-600',
+      rejected: 'bg-red-100 text-red-600'
     };
     return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${colors[status]}`}>{status}</span>;
   };
@@ -94,13 +96,13 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, orders, onUpdateUse
       <h1 className="text-3xl font-black text-slate-900 tracking-tighter">{title}</h1>
       {list.length > 0 ? (
         <div className="space-y-4">
-          {list.map(order => (
-            <div key={order.id} className="bg-white rounded-[2rem] border-2 border-slate-50 p-8 shadow-sm hover:shadow-xl transition-all">
+            {list.map((order, idx) => (
+              <div key={`${order.id}-${idx}`} className="bg-white rounded-[2rem] border-2 border-slate-50 p-8 shadow-sm hover:shadow-xl transition-all">
               <div className="flex flex-col sm:flex-row justify-between gap-6 mb-6">
                 <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estado</p><OrderStatusBadge status={order.status} /></div>
                 <div className="text-right"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total MXN</p><p className="text-xl font-black text-slate-900">${order.total.toLocaleString('es-MX')}</p></div>
               </div>
-              <div className="border-t border-slate-50 pt-6"><div className="flex flex-wrap gap-2">{order.items.map(item => (<Link key={item.id} to={`/product/${item.id}`} className="text-[10px] font-bold bg-slate-50 px-4 py-2 rounded-full border border-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all">{item.quantity}x {item.name}</Link>))}</div></div>
+              <div className="border-t border-slate-50 pt-6"><div className="flex flex-wrap gap-2">{order.items.map((item, idx) => (<Link key={`${item.id}-${idx}`} to={`/product/${item.id}`} className="text-[10px] font-bold bg-slate-50 px-4 py-2 rounded-full border border-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all">{item.quantity}x {item.name}</Link>))}</div></div>
             </div>
           ))}
         </div>
