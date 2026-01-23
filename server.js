@@ -167,13 +167,6 @@ app.post('/api/pending-orders/:orderId', express.json(), (req, res) => {
   }
 });
 
-    res.json({ success: true });
-  } catch (e) {
-    console.error('Error storing pending order:', e);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 app.get('/api/orders/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
