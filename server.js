@@ -170,18 +170,7 @@ app.post('/api/pending-orders/:orderId', express.json(), async (req, res) => {
           items: orderData.items || [],
           total: orderData.total || 0,
           shipping_address: orderData.shippingAddress || '',
-          status: 'pending'
-        }
-      ], { onConflict: 'id' });
-
-    if (upsertErr) {
-      console.error('Error upserting pending order:', upsertErr);
-      return res.status(500).json({ error: 'Failed to store pending order' });
-    }
-
-    // Also keep a short-lived in-memory copy (best effort)
-    pendingOrders.set(orderId, orderData);
-    setTimeout(() => pendingOrders.delete(orderId), 600000);
+          status: 'Pendiente'
 
     res.json({ success: true });
   } catch (e) {
@@ -352,7 +341,7 @@ app.post('/api/mp/webhook', async (req, res) => {
       .single();
 
     if (!existingOrder) {
-      // If record doesn't exist, insert an approved order with best-effort data
+      // If record doesn't exist, insert a paid order with best-effort data
       const pendingOrderData = pendingOrders.get(orderId) || {};
       const userIdForInsert = pendingOrderData.userId && pendingOrderData.userId !== 'guest' ? pendingOrderData.userId : GUEST_USER_ID;
 
@@ -366,17 +355,17 @@ app.post('/api/mp/webhook', async (req, res) => {
           items: pendingOrderData.items || [],
           total: pendingOrderData.total || 0,
           shipping_address: pendingOrderData.shippingAddress || '',
-          status: 'approved'
+          status: 'Pagado'
         });
       if (insertError) {
         console.error('❌ Error creating order from webhook:', insertError);
         return res.sendStatus(500);
       }
     } else {
-      // If record exists (created at checkout), mark it as approved
+      // If record exists (created at checkout), mark it as paid
       const { error: updateError } = await supabaseAdmin
         .from('orders')
-        .update({ status: 'approved' })
+        .update({ status: 'Pagado' })
         .eq('id', orderId);
       if (updateError) {
         console.error('❌ Error updating order status:', updateError);

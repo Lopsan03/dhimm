@@ -45,8 +45,8 @@ const CheckoutWaiting: React.FC = () => {
         setStatus(normalized);
         setNotFoundCount(0); // Reset 404 counter on successful fetch
 
-        // Redirect only when payment is approved/completed
-        if (order && order.id && ['approved', 'completed', 'paid', 'pagado'].includes(normalized)) {
+        // Redirect when payment is paid/approved (supports both Spanish and English)
+        if (order && order.id && ['pagado', 'approved', 'completado', 'completed', 'enviado', 'shipped'].includes(normalized)) {
           sessionStorage.removeItem('pendingOrderId');
           sessionStorage.removeItem('orderData');
           sessionStorage.removeItem('webhookUrl');
