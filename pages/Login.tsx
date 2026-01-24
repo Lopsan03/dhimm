@@ -26,15 +26,25 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const signInPromise = supabase.auth.signInWithPassword({ email, password });
       console.log('[login] 2. signInWithPassword promise created');
 
-      const timeoutPromise = new Promise<never>((_, reject) => {
+      // Fallback: resolve when auth state change fires SIGNED_IN in case supabase promise hangs
+      const authEventPromise = new Promise<{ data: any; error: any }>((resolve, reject) => {
+        const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            console.log('[login] 2b. auth SIGNED_IN event for user', session.user.id);
+            listener?.subscription.unsubscribe();
+            resolve({ data: { user: session.user }, error: null });
+          }
+        });
+
         setTimeout(() => {
-          console.warn('[login] timeout waiting signInWithPassword (8s)');
-          reject(new Error('Timeout en inicio de sesión')); // Force exit if hung
-        }, 8000);
+          console.warn('[login] timeout waiting for SIGNED_IN event (10s)');
+          listener?.subscription.unsubscribe();
+          reject(new Error('Timeout en inicio de sesión (evento)'));
+        }, 10000);
       });
 
-      const { data, error } = await Promise.race([signInPromise, timeoutPromise]);
-      console.log('[login] 3. signInWithPassword resolved, error:', (error as any)?.message, 'user:', (data as any)?.user?.id);
+      const { data, error } = await Promise.race([signInPromise, authEventPromise]);
+      console.log('[login] 3. resolved auth flow, error:', (error as any)?.message, 'user:', (data as any)?.user?.id);
       console.log('[login] 3b. typeof data:', typeof data, 'typeof error:', typeof error);
       
       if (error) {
