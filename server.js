@@ -257,27 +257,48 @@ app.post('/api/mp/webhook', async (req, res) => {
       const isCancelled = merchantOrder.status === 'cancelled' || merchantOrder.status === 'closed';
 
       if (!hasApproved) return res.sendStatus(200);
-      const newStatus = 'completed';
 
-      // Create order if it doesn't exist
-      const { data: existingOrder } = await supabase
+      // Create or update order with Pagado status
+      const { data: existingOrder } = await (supabaseAdmin || supabase)
         .from('orders')
         .select('id')
         .eq('id', orderId)
         .single();
 
       if (!existingOrder) {
+        const pendingOrderData = pendingOrders.get(orderId) || {};
+        const userIdForInsert = pendingOrderData.userId && pendingOrderData.userId !== 'guest' ? pendingOrderData.userId : GUEST_USER_ID;
+
         const { error: insertError } = await supabaseAdmin
           .from('orders')
           .insert({
             id: orderId,
-            user_id: GUEST_USER_ID,
-            user_name: 'Cliente',
-            user_email: '',
-            items: [],
-            total: 0,
-            shipping_address: ''
+            user_id: userIdForInsert,
+            user_name: pendingOrderData.userName || 'Cliente',
+            user_email: pendingOrderData.userEmail || '',
+            items: pendingOrderData.items || [],
+            total: pendingOrderData.total || 0,
+            shipping_address: pendingOrderData.shippingAddress || '',
+            status: 'Pagado'
           });
+
+        if (insertError) {
+          console.error('Error creating order from webhook:', insertError);
+          return res.sendStatus(500);
+        }
+      } else {
+        const { error: updateError } = await supabaseAdmin
+          .from('orders')
+          .update({ status: 'Pagado' })
+          .eq('id', orderId);
+        if (updateError) {
+          console.error('Error updating order status:', updateError);
+          return res.sendStatus(500);
+        }
+      }
+
+      pendingOrders.delete(orderId);
+      return res.sendStatus(200);
 
         if (insertError) {
           console.error('Error creating order from webhook:', insertError);
