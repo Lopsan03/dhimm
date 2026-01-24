@@ -312,21 +312,22 @@ app.put('/api/orders/:id', async (req, res) => {
     return res.status(400).json({ error: 'Missing status' });
   }
   try {
+    console.log(`[orders] updating id=${id} with status=${status}`);
     const { error } = await supabaseAdmin
       .from('orders')
       .update({ status })
       .eq('id', id);
 
     if (error) {
-      console.error('Error updating order status:', error.message);
-      return res.status(500).json({ error: 'Failed to update order' });
+      console.error(`[orders] update failed: code=${error.code} message=${error.message}`, error);
+      return res.status(500).json({ error: `Failed to update order: ${error.message}` });
     }
 
     console.log(`[orders] updated id=${id} status=${status}`);
     res.json({ success: true });
   } catch (err) {
-    console.error('Error updating order status:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('[orders] exception:', err);
+    res.status(500).json({ error: `Internal server error: ${err.message}` });
   }
 });
 
