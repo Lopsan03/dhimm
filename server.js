@@ -231,6 +231,7 @@ app.get('/api/products', async (_req, res) => {
       return res.status(500).json({ error: 'Failed to fetch products' });
     }
 
+    console.log(`[products] count=${data?.length || 0} usingServiceRole=${!!supabaseAdmin}`);
     res.json(data || []);
   } catch (err) {
     console.error('Error fetching products:', err);

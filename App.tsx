@@ -98,7 +98,7 @@ const App: React.FC = () => {
         userId: o.user_id,
         userName: o.user_name,
         userEmail: o.user_email,
-        items: o.items || [],
+        items: typeof o.items === 'string' ? JSON.parse(o.items || '[]') : (o.items || []),
         total: parseFloat(o.total),
         status: normalizeStatus(o.status),
         date: o.created_at,
@@ -141,7 +141,7 @@ const App: React.FC = () => {
           description: p.description || '',
           estado: p.estado || ''
         }));
-
+        console.log('[products] parsed count:', productsWithImages.length);
         setProducts(productsWithImages);
 
         const { data: { session } } = await supabase.auth.getSession();
@@ -271,6 +271,21 @@ const App: React.FC = () => {
       listener?.subscription?.unsubscribe();
     };
   }, []);
+
+  // Re-fetch orders whenever user changes (especially admin) using local user fallback
+  useEffect(() => {
+    const run = async () => {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      if (user?.role === 'admin') {
+        console.log('[orders] user effect: admin -> fetch all orders from', backendUrl);
+        await fetchAllOrders();
+      } else if (user?.id) {
+        console.log('[orders] user effect: user -> fetch own orders', user.id, 'from', backendUrl);
+        await fetchOrders(user.id);
+      }
+    };
+    run();
+  }, [user?.id, user?.role]);
 
   // Restore user from localStorage on first load
   useEffect(() => {
