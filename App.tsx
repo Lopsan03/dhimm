@@ -116,12 +116,17 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data: productsData, error: productsError } = await supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (productsError) throw productsError;
+        // Fetch products through backend to bypass RLS (uses service role when available)
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        console.log('[products] fetching from:', backendUrl);
+        const prodResp = await fetch(`${backendUrl}/api/products`);
+        if (!prodResp.ok) {
+          console.error('[products] fetch failed', prodResp.status, prodResp.statusText);
+          const errText = await prodResp.text();
+          console.error('[products] error response:', errText);
+          throw new Error('products fetch failed');
+        }
+        const productsData = await prodResp.json();
 
         const productsWithImages = (productsData || []).map((p: any) => ({
           id: p.id,

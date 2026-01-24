@@ -214,10 +214,37 @@ app.get('/api/user-orders/:userId', async (req, res) => {
   }
 });
 
+// Products for admin/clients (uses service role when available to bypass RLS)
+app.get('/api/products', async (_req, res) => {
+  const client = supabaseAdmin || supabase;
+  if (!supabaseAdmin) {
+    console.warn('⚠️  /api/products using anon key (set MP_WEBHOOK_SERVICE_ROLE_KEY in Railway to bypass RLS)');
+  }
+  try {
+    const { data, error } = await client
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching products:', error.message);
+      return res.status(500).json({ error: 'Failed to fetch products' });
+    }
+
+    res.json(data || []);
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get all orders (admin only - uses service role to bypass RLS)
 app.get('/api/all-orders', async (req, res) => {
   try {
     const client = supabaseAdmin || supabase;
+    if (!supabaseAdmin) {
+      console.warn('⚠️  /api/all-orders using anon key (set MP_WEBHOOK_SERVICE_ROLE_KEY in Railway to bypass RLS)');
+    }
     const { data, error } = await client
       .from('orders')
       .select('*')
