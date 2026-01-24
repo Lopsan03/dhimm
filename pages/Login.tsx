@@ -27,13 +27,33 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const authUser = data.user;
       if (!authUser) throw new Error('No se pudo iniciar sesión.');
 
+      console.log('[login] auth success, fetching profile for', authUser.id);
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, name, email, role, addresses')
         .eq('id', authUser.id)
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.warn('[login] profile fetch error:', profileError.message);
+        // Fallback: create user from auth data if profile doesn't exist
+        if (profileError.code === 'PGRST116') {
+          // No rows returned - profile doesn't exist yet
+          console.log('[login] profile not found, creating from auth data');
+          const newUser: User = {
+            id: authUser.id,
+            name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuario',
+            email: authUser.email || '',
+            role: authUser.user_metadata?.role || 'user',
+            addresses: []
+          };
+          localStorage.setItem('dhimma_user', JSON.stringify(newUser));
+          onLogin(newUser);
+          navigate(newUser.role === 'admin' ? '/admin' : '/dashboard');
+          return;
+        }
+        throw profileError;
+      }
 
       const user: User = {
         id: profileData.id,
@@ -43,6 +63,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         addresses: profileData.addresses || []
       };
 
+      console.log('[login] profile fetched, user role:', user.role);
       localStorage.setItem('dhimma_user', JSON.stringify(user));
       onLogin(user);
 
