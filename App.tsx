@@ -79,28 +79,37 @@ const App: React.FC = () => {
   const fetchAllOrders = async () => {
     // Fetch all orders for admin (uses service role)
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-    const resp = await fetch(`${backendUrl}/api/all-orders`);
-    if (!resp.ok) {
-      console.error('Failed to fetch all orders from backend', resp.status);
+    console.log('[orders] fetching all orders from:', backendUrl);
+    try {
+      const resp = await fetch(`${backendUrl}/api/all-orders`);
+      if (!resp.ok) {
+        console.error('Failed to fetch all orders from backend', resp.status, resp.statusText);
+        const errorText = await resp.text();
+        console.error('Error response:', errorText);
+        setOrders([]);
+        return;
+      }
+      const ordersData = await resp.json();
+      console.log('[orders] raw data from backend:', ordersData);
+
+      const parsedOrders = (ordersData || []).map((o: any) => ({
+        id: o.id,
+        userId: o.user_id,
+        userName: o.user_name,
+        userEmail: o.user_email,
+        items: o.items || [],
+        total: parseFloat(o.total),
+        status: normalizeStatus(o.status),
+        date: o.created_at,
+        shippingAddress: o.shipping_address
+      }));
+
+      console.log('[orders] fetched all orders for admin, count', parsedOrders.length);
+      setOrders(parsedOrders);
+    } catch (err) {
+      console.error('[orders] Exception fetching all orders:', err);
       setOrders([]);
-      return;
     }
-    const ordersData = await resp.json();
-
-    const parsedOrders = (ordersData || []).map((o: any) => ({
-      id: o.id,
-      userId: o.user_id,
-      userName: o.user_name,
-      userEmail: o.user_email,
-      items: o.items || [],
-      total: parseFloat(o.total),
-      status: normalizeStatus(o.status),
-      date: o.created_at,
-      shippingAddress: o.shipping_address
-    }));
-
-    console.log('[orders] fetched all orders for admin, count', parsedOrders.length);
-    setOrders(parsedOrders);
   };
 
   // Fetch products and orders on mount; refresh orders on auth changes
@@ -138,13 +147,13 @@ const App: React.FC = () => {
             .eq('id', session.user.id)
             .single();
           
-          console.log('[auth] User:', session.user.id, 'Profile:', profile, 'Role:', profile?.role);
+          console.log('[auth] User:', session.user.id, 'Email:', session.user.email, 'Profile:', profile, 'Role:', profile?.role);
           
           if (profile?.role === 'admin') {
             console.log('[auth] User is admin, fetching all orders');
             await fetchAllOrders();
           } else {
-            console.log('[auth] User is not admin, fetching user orders');
+            console.log('[auth] User is not admin, fetching user orders only');
             await fetchOrders(session.user.id);
           }
         } else {
