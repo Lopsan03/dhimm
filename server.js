@@ -255,6 +255,7 @@ app.get('/api/all-orders', async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch orders' });
     }
 
+    console.log(`[all-orders] count=${data?.length || 0} usingServiceRole=${!!supabaseAdmin}`);
     res.json(data || []);
   } catch (err) {
     console.error('Error fetching all orders:', err);

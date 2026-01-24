@@ -91,6 +91,7 @@ const App: React.FC = () => {
       }
       const ordersData = await resp.json();
       console.log('[orders] raw data from backend:', ordersData);
+      console.log('[orders] backend returned count:', (ordersData || []).length);
 
       const parsedOrders = (ordersData || []).map((o: any) => ({
         id: o.id,
