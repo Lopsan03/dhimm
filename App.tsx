@@ -180,7 +180,24 @@ const App: React.FC = () => {
           }
         } else {
           console.log('[auth] No session found');
-          setOrders([]);
+          // Fallback: use saved local user (role/id) to fetch
+          const savedUserRaw = localStorage.getItem('dhimma_user');
+          if (savedUserRaw) {
+            try {
+              const saved = JSON.parse(savedUserRaw) as User;
+              console.log('[auth] Using local user fallback:', saved.id, saved.role);
+              if (saved.role === 'admin') {
+                await fetchAllOrders();
+              } else if (saved.id) {
+                await fetchOrders(saved.id);
+              }
+            } catch (e) {
+              console.error('[auth] Failed to parse local user fallback', e);
+              setOrders([]);
+            }
+          } else {
+            setOrders([]);
+          }
         }
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -229,7 +246,24 @@ const App: React.FC = () => {
         }
       } else {
         console.log('[auth] No session in state change');
-        setOrders([]);
+        // Fallback: use saved local user (role/id) to fetch
+        const savedUserRaw = localStorage.getItem('dhimma_user');
+        if (savedUserRaw) {
+          try {
+            const saved = JSON.parse(savedUserRaw) as User;
+            console.log('[auth] Using local user fallback (state change):', saved.id, saved.role);
+            if (saved.role === 'admin') {
+              await fetchAllOrders();
+            } else if (saved.id) {
+              await fetchOrders(saved.id);
+            }
+          } catch (e) {
+            console.error('[auth] Failed to parse local user fallback (state change)', e);
+            setOrders([]);
+          }
+        } else {
+          setOrders([]);
+        }
       }
     });
 
