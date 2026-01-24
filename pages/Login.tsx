@@ -31,12 +31,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
           if (event === 'SIGNED_IN' && session?.user) {
             console.log('[login] 2b. auth SIGNED_IN event for user', session.user.id);
+            clearTimeout(timeoutId);
             listener?.subscription.unsubscribe();
             resolve({ data: { user: session.user }, error: null });
           }
         });
 
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           console.warn('[login] timeout waiting for SIGNED_IN event (10s)');
           listener?.subscription.unsubscribe();
           reject(new Error('Timeout en inicio de sesión (evento)'));
