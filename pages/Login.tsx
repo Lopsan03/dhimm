@@ -21,55 +21,74 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
 
     try {
+      console.log('[login] attempting sign in with', email);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
       const authUser = data.user;
       if (!authUser) throw new Error('No se pudo iniciar sesión.');
 
-      console.log('[login] auth success, fetching profile for', authUser.id);
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, name, email, role, addresses')
-        .eq('id', authUser.id)
-        .single();
+      console.log('[login] auth success, user id:', authUser.id, 'email:', authUser.email);
 
-      if (profileError) {
-        console.warn('[login] profile fetch error:', profileError.message);
-        // Fallback: create user from auth data if profile doesn't exist
-        if (profileError.code === 'PGRST116') {
-          // No rows returned - profile doesn't exist yet
-          console.log('[login] profile not found, creating from auth data');
-          const newUser: User = {
-            id: authUser.id,
-            name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuario',
-            email: authUser.email || '',
-            role: authUser.user_metadata?.role || 'user',
-            addresses: []
-          };
-          localStorage.setItem('dhimma_user', JSON.stringify(newUser));
-          onLogin(newUser);
-          navigate(newUser.role === 'admin' ? '/admin' : '/dashboard');
-          return;
+      // Try to fetch profile with a timeout
+      let profileData = null;
+      let profileError = null;
+      try {
+        const profilePromise = supabase
+          .from('profiles')
+          .select('id, name, email, role, addresses')
+          .eq('id', authUser.id)
+          .single();
+
+        // Wrap with timeout
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+        );
+
+        const result = await Promise.race([profilePromise, timeoutPromise]);
+        if (result && 'data' in result) {
+          profileData = result.data;
+        } else {
+          const response = result as any;
+          profileData = response;
         }
-        throw profileError;
+      } catch (err: any) {
+        console.warn('[login] profile fetch error/timeout:', err.message);
+        profileError = err;
       }
 
-      const user: User = {
-        id: profileData.id,
-        name: profileData.name || authUser.email?.split('@')[0] || 'Usuario',
-        email: profileData.email,
-        role: profileData.role,
-        addresses: profileData.addresses || []
-      };
+      let user: User;
 
-      console.log('[login] profile fetched, user role:', user.role);
+      if (profileError || !profileData) {
+        console.log('[login] using fallback user from auth metadata');
+        // Fallback: create user from auth data
+        user = {
+          id: authUser.id,
+          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuario',
+          email: authUser.email || '',
+          role: authUser.user_metadata?.role || 'user',
+          addresses: []
+        };
+      } else {
+        console.log('[login] profile fetched successfully');
+        user = {
+          id: profileData.id,
+          name: profileData.name || authUser.email?.split('@')[0] || 'Usuario',
+          email: profileData.email,
+          role: profileData.role,
+          addresses: profileData.addresses || []
+        };
+      }
+
+      console.log('[login] user object:', user);
       localStorage.setItem('dhimma_user', JSON.stringify(user));
       onLogin(user);
 
-      navigate(user.role === 'admin' ? '/admin' : '/dashboard');
+      const redirectTo = user.role === 'admin' ? '/admin' : '/dashboard';
+      console.log('[login] redirecting to', redirectTo);
+      navigate(redirectTo);
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('[login] error:', err);
       setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
       setLoading(false);
     }
