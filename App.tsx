@@ -38,15 +38,15 @@ const App: React.FC = () => {
     if (base && typeof url === 'string') imageMap[base] = url;
   }
 
-  // Normalize status values (Spanish/English/upper) to canonical values
+  // Normalize status values (Spanish/English/upper) to canonical lowercase
   const normalizeStatus = (status: string) => {
     const s = (status || '').toString().toLowerCase();
-    if (['pendiente', 'pending'].includes(s)) return 'pending';
-    if (['aprobado', 'approved'].includes(s)) return 'approved';
-    if (['completado', 'completed', 'pagado', 'paid'].includes(s)) return 'completed';
+    if (['pendiente', 'pending'].includes(s)) return 'pendiente';
+    if (['pagado', 'paid', 'approved', 'aprobado'].includes(s)) return 'pagado';
+    if (['enviado', 'shipped'].includes(s)) return 'enviado';
+    if (['completado', 'completed'].includes(s)) return 'completado';
     if (['rechazado', 'rejected'].includes(s)) return 'rejected';
-    if (['enviado', 'shipped'].includes(s)) return 'shipped';
-    return s || 'pending';
+    return s || 'pendiente';
   };
 
   const fetchOrders = async (userId: string) => {
