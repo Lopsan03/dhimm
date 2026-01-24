@@ -407,12 +407,17 @@ const App: React.FC = () => {
 
   const handleUpdateOrder = async (orderId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const resp = await fetch(`${backendUrl}/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
 
-      if (error) throw error;
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(errText || 'Failed to update order');
+      }
 
       // Update local state
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));

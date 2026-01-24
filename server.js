@@ -301,6 +301,35 @@ app.get('/api/all-orders', async (req, res) => {
   }
 });
 
+// Update order status (admin) using service role
+app.put('/api/orders/:id', async (req, res) => {
+  if (!supabaseAdmin) {
+    return res.status(403).json({ error: 'Service role key required for order updates' });
+  }
+  const { id } = req.params;
+  const { status } = req.body || {};
+  if (!status) {
+    return res.status(400).json({ error: 'Missing status' });
+  }
+  try {
+    const { error } = await supabaseAdmin
+      .from('orders')
+      .update({ status })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating order status:', error.message);
+      return res.status(500).json({ error: 'Failed to update order' });
+    }
+
+    console.log(`[orders] updated id=${id} status=${status}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating order status:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/mp/webhook', async (req, res) => {
 });
 
