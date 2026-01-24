@@ -23,6 +23,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       console.log('[login] attempting sign in with', email);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      console.log('[login] auth response:', { error: error?.message, userId: data?.user?.id });
+      
       if (error) throw error;
 
       const authUser = data.user;
@@ -30,38 +32,38 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       console.log('[login] auth success, user id:', authUser.id, 'email:', authUser.email);
 
-      // Try to fetch profile with a timeout
-      let profileData = null;
-      let profileError = null;
+      // Try to fetch profile, but don't block on failure
+      let profileData: any = null;
       try {
-        const profilePromise = supabase
+        const { data: pData, error: pError } = await supabase
           .from('profiles')
           .select('id, name, email, role, addresses')
           .eq('id', authUser.id)
           .single();
 
-        // Wrap with timeout
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
-        );
-
-        const result = await Promise.race([profilePromise, timeoutPromise]);
-        if (result && 'data' in result) {
-          profileData = result.data;
+        if (!pError) {
+          profileData = pData;
+          console.log('[login] profile fetched successfully');
         } else {
-          const response = result as any;
-          profileData = response;
+          console.warn('[login] profile fetch error:', pError.message);
         }
       } catch (err: any) {
-        console.warn('[login] profile fetch error/timeout:', err.message);
-        profileError = err;
+        console.warn('[login] profile fetch exception:', err.message);
       }
 
       let user: User;
 
-      if (profileError || !profileData) {
-        console.log('[login] using fallback user from auth metadata');
-        // Fallback: create user from auth data
+      if (profileData) {
+        user = {
+          id: profileData.id,
+          name: profileData.name || authUser.email?.split('@')[0] || 'Usuario',
+          email: profileData.email,
+          role: profileData.role || 'user',
+          addresses: profileData.addresses || []
+        };
+      } else {
+        // Fallback: use auth metadata
+        console.log('[login] using auth metadata as fallback');
         user = {
           id: authUser.id,
           name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuario',
@@ -69,26 +71,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           role: authUser.user_metadata?.role || 'user',
           addresses: []
         };
-      } else {
-        console.log('[login] profile fetched successfully');
-        user = {
-          id: profileData.id,
-          name: profileData.name || authUser.email?.split('@')[0] || 'Usuario',
-          email: profileData.email,
-          role: profileData.role,
-          addresses: profileData.addresses || []
-        };
       }
 
-      console.log('[login] user object:', user);
+      console.log('[login] final user object:', { id: user.id, name: user.name, role: user.role, email: user.email });
       localStorage.setItem('dhimma_user', JSON.stringify(user));
       onLogin(user);
 
       const redirectTo = user.role === 'admin' ? '/admin' : '/dashboard';
-      console.log('[login] redirecting to', redirectTo);
+      console.log('[login] navigating to:', redirectTo);
       navigate(redirectTo);
     } catch (err: any) {
-      console.error('[login] error:', err);
+      console.error('[login] error:', err.message);
       setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
       setLoading(false);
     }
