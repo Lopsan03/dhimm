@@ -22,8 +22,10 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, orders, onUpdateUse
     country: 'México'
   });
 
-  const pendingOrders = orders.filter(o => o.status === 'pending');
-  const completedOrders = orders.filter(o => ['approved', 'shipped', 'completed'].includes(o.status));
+  // Pedidos = Pendiente + Pagado + Enviado (active orders: pending, paid, shipped)
+  const pendingOrders = orders.filter(o => ['pending', 'pendiente', 'pagado', 'paid', 'enviado', 'shipped'].includes(o.status));
+  // Historial = Completado (only fully completed/delivered orders)
+  const completedOrders = orders.filter(o => ['completed', 'completado'].includes(o.status));
 
   const OrderStatusBadge = ({ status }: { status: string }) => {
     const colors: Record<string, string> = {
