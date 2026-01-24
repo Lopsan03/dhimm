@@ -234,15 +234,8 @@ app.get('/api/all-orders', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-      console.error('Error fetching user orders:', error);
-      return res.status(500).json({ error: 'Failed to fetch orders' });
-    }
 
-    res.json(data || []);
-  } catch (err) {
-    console.error('Error fetching user orders:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+app.post('/api/mp/webhook', async (req, res) => {
 });
 
 app.post('/api/mp/webhook', async (req, res) => {
