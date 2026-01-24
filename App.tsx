@@ -385,23 +385,17 @@ const App: React.FC = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('products')
-        .update({
-          name: updatedProduct.name,
-          category: updatedProduct.category,
-          brand: updatedProduct.brand,
-          compatible_models: updatedProduct.compatibleModels,
-          price: updatedProduct.price,
-          stock: updatedProduct.stock,
-          image: updatedProduct.image,
-          description: updatedProduct.description,
-          estado: updatedProduct.estado,
-          updated_by_admin_id: user.id
-        })
-        .eq('id', updatedProduct.id);
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const resp = await fetch(`${backendUrl}/api/products/${updatedProduct.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...updatedProduct, updated_by_admin_id: user.id })
+      });
 
-      if (error) throw error;
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(errText || 'Failed to update product');
+      }
 
       // Update local state
       setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));

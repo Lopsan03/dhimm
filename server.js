@@ -239,6 +239,43 @@ app.get('/api/products', async (_req, res) => {
   }
 });
 
+// Update a product (admin only via service role)
+app.put('/api/products/:id', async (req, res) => {
+  if (!supabaseAdmin) {
+    return res.status(403).json({ error: 'Service role key required for product updates' });
+  }
+  const { id } = req.params;
+  const payload = req.body || {};
+  try {
+    const { error } = await supabaseAdmin
+      .from('products')
+      .update({
+        name: payload.name,
+        category: payload.category,
+        brand: payload.brand,
+        compatible_models: payload.compatibleModels,
+        price: payload.price,
+        stock: payload.stock,
+        image: payload.image,
+        description: payload.description,
+        estado: payload.estado,
+        updated_by_admin_id: payload.updated_by_admin_id || null
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating product:', error.message);
+      return res.status(500).json({ error: 'Failed to update product' });
+    }
+
+    console.log(`[products] updated id=${id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating product:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get all orders (admin only - uses service role to bypass RLS)
 app.get('/api/all-orders', async (req, res) => {
   try {
