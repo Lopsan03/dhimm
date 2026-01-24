@@ -220,7 +220,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
           <div className="flex flex-wrap gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 items-end">
             <CustomDropdown 
               label="Filtrar por Estado" 
-              options={['All', 'pendiente', 'pagado', 'enviado', 'completado']} 
+              options={['All', 'Pendiente', 'Pagado', 'Enviado', 'Completado']} 
               selected={filterOrderStatus} 
               onSelect={setFilterOrderStatus} 
               placeholder="Todos los Estados"
@@ -261,7 +261,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                 <div className="min-w-[180px]">
                   <CustomDropdown 
                     label=""
-                    options={['pendiente', 'pagado', 'enviado', 'completado']}
+                    options={['Pendiente', 'Pagado', 'Enviado', 'Completado']}
                     selected={order.status}
                     onSelect={(val) => onUpdateOrder(order.id, val)}
                   />
