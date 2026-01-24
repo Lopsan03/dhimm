@@ -141,20 +141,36 @@ const App: React.FC = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user?.id) {
           // Check if user is admin from profile
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-          
-          console.log('[auth] User:', session.user.id, 'Email:', session.user.email, 'Profile:', profile, 'Role:', profile?.role);
-          
-          if (profile?.role === 'admin') {
-            console.log('[auth] User is admin, fetching all orders');
-            await fetchAllOrders();
-          } else {
-            console.log('[auth] User is not admin, fetching user orders only');
-            await fetchOrders(session.user.id);
+          try {
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (profileError) {
+              console.error('[auth] profile fetch error (initial):', profileError.message);
+            }
+
+            console.log('[auth] User:', session.user.id, 'Email:', session.user.email, 'Profile:', profile, 'Role:', profile?.role, 'UserStateRole:', user?.role);
+            
+            const isAdmin = profile?.role === 'admin' || user?.role === 'admin';
+            if (isAdmin) {
+              console.log('[auth] User is admin (initial), fetching all orders');
+              await fetchAllOrders();
+            } else {
+              console.log('[auth] User is not admin (initial), fetching user orders only');
+              await fetchOrders(session.user.id);
+            }
+          } catch (err) {
+            console.error('[auth] profile fetch exception (initial):', err);
+            // Fallback: if local user state says admin, still fetch all orders
+            if (user?.role === 'admin') {
+              console.log('[auth] Fallback: user state is admin, fetching all orders');
+              await fetchAllOrders();
+            } else {
+              await fetchOrders(session.user.id);
+            }
           }
         } else {
           console.log('[auth] No session found');
@@ -175,20 +191,35 @@ const App: React.FC = () => {
       if (session?.user?.id) {
         console.log('[auth] change user', session.user.id);
         // Check if user is admin
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-        
-        console.log('[auth] Profile in state change:', profile, 'Role:', profile?.role);
-        
-        if (profile?.role === 'admin') {
-          console.log('[auth] User is admin (state change), fetching all orders');
-          await fetchAllOrders();
-        } else {
-          console.log('[auth] User is not admin (state change), fetching user orders');
-          await fetchOrders(session.user.id);
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileError) {
+            console.error('[auth] profile fetch error (state change):', profileError.message);
+          }
+          
+          console.log('[auth] Profile in state change:', profile, 'Role:', profile?.role, 'UserStateRole:', user?.role);
+          
+          const isAdmin = profile?.role === 'admin' || user?.role === 'admin';
+          if (isAdmin) {
+            console.log('[auth] User is admin (state change), fetching all orders');
+            await fetchAllOrders();
+          } else {
+            console.log('[auth] User is not admin (state change), fetching user orders');
+            await fetchOrders(session.user.id);
+          }
+        } catch (err) {
+          console.error('[auth] profile fetch exception (state change):', err);
+          if (user?.role === 'admin') {
+            console.log('[auth] Fallback: user state is admin (state change), fetching all orders');
+            await fetchAllOrders();
+          } else {
+            await fetchOrders(session.user.id);
+          }
         }
       } else {
         console.log('[auth] No session in state change');
