@@ -29,7 +29,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-  const pendingOrders = orders.filter(o => o.status === 'pending').length;
+  const pendingOrders = orders.filter(o => o.status === 'pendiente' || o.status === 'pagado' || o.status === 'enviado').length;
 
   const filteredProducts = filterCategory === 'All' 
     ? products 
@@ -37,17 +37,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
 
   const filteredOrders = filterOrderStatus === 'All' 
     ? orders 
-    : orders.filter(o => o.status === filterOrderStatus);
+    : orders.filter(o => o.status?.toLowerCase() === filterOrderStatus.toLowerCase());
 
   const OrderStatusBadge = ({ status }: { status: string }) => {
+    const statusLower = status?.toLowerCase() || '';
     const colors: Record<string, string> = {
-      pending: 'bg-yellow-100 text-yellow-600',
-      approved: 'bg-blue-100 text-blue-600',
-      shipped: 'bg-indigo-100 text-indigo-600',
-      completed: 'bg-green-100 text-green-600',
+      pendiente: 'bg-yellow-100 text-yellow-600',
+      pagado: 'bg-blue-100 text-blue-600',
+      enviado: 'bg-indigo-100 text-indigo-600',
+      completado: 'bg-green-100 text-green-600',
       rejected: 'bg-red-100 text-red-600'
     };
-    return <span className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest ${colors[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
+    return <span className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest ${colors[statusLower] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
   };
 
   const openEditModal = (product: Product) => {
@@ -213,7 +214,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
           <div className="flex flex-wrap gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 items-end">
             <CustomDropdown 
               label="Filtrar por Estado" 
-              options={['All', 'pending', 'approved', 'shipped', 'completed', 'rejected']} 
+              options={['All', 'pendiente', 'pagado', 'enviado', 'completado']} 
               selected={filterOrderStatus} 
               onSelect={setFilterOrderStatus} 
               placeholder="Todos los Estados"
@@ -249,7 +250,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                 <div className="min-w-[180px]">
                   <CustomDropdown 
                     label=""
-                    options={['Pagado', 'Enviado', 'Completado']}
+                    options={['pendiente', 'pagado', 'enviado', 'completado']}
                     selected={order.status}
                     onSelect={(val) => onUpdateOrder(order.id, val)}
                   />
