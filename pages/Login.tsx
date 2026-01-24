@@ -28,75 +28,64 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       
       const { data, error } = await signInPromise;
       console.log('[login] 3. signInWithPassword resolved, error:', error?.message, 'user:', data?.user?.id);
+      console.log('[login] 3b. typeof data:', typeof data, 'typeof error:', typeof error);
       
       if (error) {
-        console.log('[login] 4a. error from signInWithPassword, throwing');
+        console.log('[login] 4a. error from signInWithPassword, error code:', error.status, 'message:', error.message);
+        setLoading(false);
         throw error;
       }
 
-      console.log('[login] 4b. no error, checking data.user');
+      console.log('[login] 4b. no error, checking data:', !!data);
+      
+      if (!data || !data.user) {
+        console.log('[login] 5a. data.user is null/undefined');
+        setLoading(false);
+        throw new Error('No se pudo iniciar sesión. Intenta de nuevo.');
+      }
+
       const authUser = data.user;
-      console.log('[login] 5. authUser:', authUser?.id);
+      console.log('[login] 5b. authUser retrieved:', authUser.id);
       
-      if (!authUser) {
-        console.log('[login] 6. authUser is null, throwing');
-        throw new Error('No se pudo iniciar sesión.');
-      }
-
-      console.log('[login] 7. fetching profile for', authUser.id);
+      console.log('[login] 6. fetching profile for user', authUser.id);
       let profileData: any = null;
-      try {
-        const { data: pData, error: pError } = await supabase
-          .from('profiles')
-          .select('id, name, email, role, addresses')
-          .eq('id', authUser.id)
-          .single();
-
-        console.log('[login] 8. profile response:', { hasError: !!pError, hasData: !!pData });
-        
-        if (!pError) {
-          profileData = pData;
-          console.log('[login] 9. profile fetched');
-        } else {
-          console.warn('[login] 9. profile error:', pError.message);
-        }
-      } catch (err: any) {
-        console.warn('[login] 9b. profile exception:', err.message);
-      }
-
-      console.log('[login] 10. building user object, profileData=', !!profileData);
-      let user: User;
-
-      if (profileData) {
-        user = {
-          id: profileData.id,
-          name: profileData.name || authUser.email?.split('@')[0] || 'Usuario',
-          email: profileData.email,
-          role: profileData.role || 'user',
-          addresses: profileData.addresses || []
-        };
-      } else {
-        console.log('[login] 11. using auth metadata fallback');
-        user = {
-          id: authUser.id,
-          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuario',
-          email: authUser.email || '',
-          role: authUser.user_metadata?.role || 'user',
-          addresses: []
-        };
-      }
-
-      console.log('[login] 12. user built:', { id: user.id, role: user.role });
-      localStorage.setItem('dhimma_user', JSON.stringify(user));
-      console.log('[login] 13. localStorage set');
       
-      onLogin(user);
-      console.log('[login] 14. onLogin called');
+      const { data: pData, error: pError } = await supabase
+        .from('profiles')
+        .select('id, name, email, role, addresses')
+        .eq('id', authUser.id)
+        .single();
 
-      const redirectTo = user.role === 'admin' ? '/admin' : '/dashboard';
-      console.log('[login] 15. navigating to:', redirectTo);
-      navigate(redirectTo);
-      console.log('[login] 16. navigate called');
+      console.log('[login] 7. profile query completed:', { hasError: !!pError, hasData: !!pData });
+      
+      if (pData) {
+        profileData = pData;
+        console.log('[login] 8. profile found:', profileData.id);
+      } else if (pError) {
+        console.warn('[login] 8. profile query error (not fatal):', pError.code, pError.message);
+      }
+
+      console.log('[login] 9. building user object');
+      const user: User = {
+        id: authUser.id,
+        name: profileData?.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuario',
+        email: profileData?.email || authUser.email || '',
+        role: profileData?.role || authUser.user_metadata?.role || 'user',
+        addresses: profileData?.addresses || []
+      };
+
+      console.log('[login] 10. user object complete:', { id: user.id, role: user.role });
+      localStorage.setItem('dhimma_user', JSON.stringify(user));
+      console.log('[login] 11. localStorage set');
+      
+      console.log('[login] 12. calling onLogin');
+      onLogin(user);
+      
+      console.log('[login] 13. preparing redirect to', user.role === 'admin' ? '/admin' : '/dashboard');
+      setLoading(false);
+      
+      navigate(user.role === 'admin' ? '/admin' : '/dashboard');
+      console.log('[login] 14. navigation initiated');
     } catch (err: any) {
       console.error('[login] ERROR:', err.message);
       setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
