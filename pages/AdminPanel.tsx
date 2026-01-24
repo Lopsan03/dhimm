@@ -179,32 +179,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filteredProducts.map(p => (
-                <tr key={p.id} className="hover:bg-slate-50/20 transition-colors">
-                  <td className="px-10 py-6">
-                    <div className="flex items-center gap-6">
-                      <img src={p.image} className="w-14 h-14 rounded-2xl object-cover shadow-sm border border-slate-100" alt="" />
-                      <div>
-                        <p className="font-black text-slate-900 text-base leading-tight tracking-tighter">{p.name}</p>
-                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1 bg-blue-50 px-2 py-0.5 rounded-full inline-block">{p.brand}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-10 py-6 font-mono font-black text-slate-800 text-lg">
-                    ${p.price.toLocaleString('es-MX')}
-                  </td>
-                  <td className="px-10 py-6 text-center">
-                    <span className={`cursor-pointer font-black text-xl px-4 py-2 rounded-2xl transition-all ${p.stock <= 5 ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-700'}`}>
-                      {p.stock}
-                    </span>
-                  </td>
-                  <td className="px-10 py-6 text-right">
-                    <button onClick={() => openEditModal(p)} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all">
-                      <i className="fas fa-edit"></i>
-                    </button>
-                  </td>
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-10 py-8 text-center text-slate-400">No hay productos disponibles</td>
                 </tr>
-              ))}
+              ) : (
+                filteredProducts.map(p => (
+                  <tr key={p.id} className="hover:bg-slate-50/20 transition-colors">
+                    <td className="px-10 py-6">
+                      <div className="flex items-center gap-6">
+                        <img src={p.image} className="w-14 h-14 rounded-2xl object-cover shadow-sm border border-slate-100" alt="" />
+                        <div>
+                          <p className="font-black text-slate-900 text-base leading-tight tracking-tighter">{p.name}</p>
+                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1 bg-blue-50 px-2 py-0.5 rounded-full inline-block">{p.brand}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-10 py-6 font-mono font-black text-slate-800 text-lg">
+                      ${p.price.toLocaleString('es-MX')}
+                    </td>
+                    <td className="px-10 py-6 text-center">
+                      <span className={`cursor-pointer font-black text-xl px-4 py-2 rounded-2xl transition-all ${p.stock <= 5 ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-700'}`}>
+                        {p.stock}
+                      </span>
+                    </td>
+                    <td className="px-10 py-6 text-right">
+                      <button onClick={() => openEditModal(p)} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all">
+                        <i className="fas fa-edit"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
           </div>
@@ -227,7 +233,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
             </button>
           </div>
           <div className="space-y-8">
-          {filteredOrders.map(order => (
+          {filteredOrders.length === 0 ? (
+            <div className="bg-white rounded-[3rem] border-2 border-slate-50 p-10 text-center">
+              <p className="text-slate-400 font-bold">No hay pedidos disponibles</p>
+            </div>
+          ) : (
+            filteredOrders.map(order => (
             <div key={order.id} className="bg-white rounded-[3rem] border-2 border-slate-50 p-10 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10 group hover:shadow-2xl transition-all hover:border-white">
               <div className="flex-grow">
                 <div className="flex items-center gap-4 mb-4">
@@ -263,7 +274,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                 </button>
               </div>
             </div>
-          ))}
+            ))
+          )}
           </div>
         </div>
       )}

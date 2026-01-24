@@ -138,12 +138,17 @@ const App: React.FC = () => {
             .eq('id', session.user.id)
             .single();
           
+          console.log('[auth] User:', session.user.id, 'Profile:', profile, 'Role:', profile?.role);
+          
           if (profile?.role === 'admin') {
+            console.log('[auth] User is admin, fetching all orders');
             await fetchAllOrders();
           } else {
+            console.log('[auth] User is not admin, fetching user orders');
             await fetchOrders(session.user.id);
           }
         } else {
+          console.log('[auth] No session found');
           setOrders([]);
         }
       } catch (err) {
@@ -167,12 +172,17 @@ const App: React.FC = () => {
           .eq('id', session.user.id)
           .single();
         
+        console.log('[auth] Profile in state change:', profile, 'Role:', profile?.role);
+        
         if (profile?.role === 'admin') {
+          console.log('[auth] User is admin (state change), fetching all orders');
           await fetchAllOrders();
         } else {
+          console.log('[auth] User is not admin (state change), fetching user orders');
           await fetchOrders(session.user.id);
         }
       } else {
+        console.log('[auth] No session in state change');
         setOrders([]);
       }
     });
@@ -187,7 +197,9 @@ const App: React.FC = () => {
     const savedUser = localStorage.getItem('dhimma_user');
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser);
+        console.log('[app] Restored user from localStorage:', parsed);
+        setUser(parsed);
       } catch (e) {
         console.error('Error parsing saved user', e);
       }
