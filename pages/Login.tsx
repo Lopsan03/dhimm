@@ -25,9 +25,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       
       const signInPromise = supabase.auth.signInWithPassword({ email, password });
       console.log('[login] 2. signInWithPassword promise created');
-      
-      const { data, error } = await signInPromise;
-      console.log('[login] 3. signInWithPassword resolved, error:', error?.message, 'user:', data?.user?.id);
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          console.warn('[login] timeout waiting signInWithPassword (8s)');
+          reject(new Error('Timeout en inicio de sesión')); // Force exit if hung
+        }, 8000);
+      });
+
+      const { data, error } = await Promise.race([signInPromise, timeoutPromise]);
+      console.log('[login] 3. signInWithPassword resolved, error:', (error as any)?.message, 'user:', (data as any)?.user?.id);
       console.log('[login] 3b. typeof data:', typeof data, 'typeof error:', typeof error);
       
       if (error) {
