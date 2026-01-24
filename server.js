@@ -299,14 +299,6 @@ app.post('/api/mp/webhook', async (req, res) => {
 
       pendingOrders.delete(orderId);
       return res.sendStatus(200);
-
-        if (insertError) {
-          console.error('Error creating order from webhook:', insertError);
-          return res.sendStatus(500);
-        }
-      }
-
-      return res.sendStatus(200);
     }
 
     const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}` , {
