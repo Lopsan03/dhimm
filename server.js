@@ -214,6 +214,37 @@ app.get('/api/user-orders/:userId', async (req, res) => {
   }
 });
 
+// Get all orders (admin only - uses service role to bypass RLS)
+app.get('/api/all-orders', async (req, res) => {
+  try {
+    const client = supabaseAdmin || supabase;
+    const { data, error } = await client
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching all orders:', error);
+      return res.status(500).json({ error: 'Failed to fetch orders' });
+    }
+
+    res.json(data || []);
+  } catch (err) {
+    console.error('Error fetching all orders:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+      console.error('Error fetching user orders:', error);
+      return res.status(500).json({ error: 'Failed to fetch orders' });
+    }
+
+    res.json(data || []);
+  } catch (err) {
+    console.error('Error fetching user orders:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/mp/webhook', async (req, res) => {
   try {
     // TODO: Implement proper signature validation using Mercado Pago's algorithm

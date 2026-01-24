@@ -76,6 +76,33 @@ const App: React.FC = () => {
     setOrders(parsedOrders);
   };
 
+  const fetchAllOrders = async () => {
+    // Fetch all orders for admin (uses service role)
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const resp = await fetch(`${backendUrl}/api/all-orders`);
+    if (!resp.ok) {
+      console.error('Failed to fetch all orders from backend', resp.status);
+      setOrders([]);
+      return;
+    }
+    const ordersData = await resp.json();
+
+    const parsedOrders = (ordersData || []).map((o: any) => ({
+      id: o.id,
+      userId: o.user_id,
+      userName: o.user_name,
+      userEmail: o.user_email,
+      items: o.items || [],
+      total: parseFloat(o.total),
+      status: normalizeStatus(o.status),
+      date: o.created_at,
+      shippingAddress: o.shipping_address
+    }));
+
+    console.log('[orders] fetched all orders for admin, count', parsedOrders.length);
+    setOrders(parsedOrders);
+  };
+
   // Fetch products and orders on mount; refresh orders on auth changes
   useEffect(() => {
     const fetchData = async () => {
@@ -104,7 +131,18 @@ const App: React.FC = () => {
 
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user?.id) {
-          await fetchOrders(session.user.id);
+          // Check if user is admin from profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profile?.role === 'admin') {
+            await fetchAllOrders();
+          } else {
+            await fetchOrders(session.user.id);
+          }
         } else {
           setOrders([]);
         }
@@ -122,7 +160,18 @@ const App: React.FC = () => {
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user?.id) {
         console.log('[auth] change user', session.user.id);
-        await fetchOrders(session.user.id);
+        // Check if user is admin
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile?.role === 'admin') {
+          await fetchAllOrders();
+        } else {
+          await fetchOrders(session.user.id);
+        }
       } else {
         setOrders([]);
       }
