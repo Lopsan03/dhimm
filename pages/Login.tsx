@@ -67,20 +67,35 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       
       console.log('[login] 6. fetching profile for user', authUser.id);
       let profileData: any = null;
-      
-      const { data: pData, error: pError } = await supabase
+
+      const profileFetch = supabase
         .from('profiles')
         .select('id, name, email, role, addresses')
         .eq('id', authUser.id)
         .single();
 
-      console.log('[login] 7. profile query completed:', { hasError: !!pError, hasData: !!pData });
-      
-      if (pData) {
-        profileData = pData;
-        console.log('[login] 8. profile found:', profileData.id);
-      } else if (pError) {
-        console.warn('[login] 8. profile query error (not fatal):', pError.code, pError.message);
+      const profileTimeout = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          console.warn('[login] profile fetch timeout (4s), will use auth metadata');
+          reject(new Error('profile-timeout'));
+        }, 4000);
+      });
+
+      try {
+        const { data: pData, error: pError } = await Promise.race([profileFetch, profileTimeout]);
+        console.log('[login] 7. profile query completed:', { hasError: !!pError, hasData: !!pData });
+        if (pData) {
+          profileData = pData;
+          console.log('[login] 8. profile found:', profileData.id);
+        } else if (pError) {
+          console.warn('[login] 8. profile query error (not fatal):', pError.code, pError.message);
+        }
+      } catch (err: any) {
+        if (err?.message === 'profile-timeout') {
+          console.warn('[login] 8b. profile fetch timed out, using auth metadata');
+        } else {
+          console.warn('[login] 8c. profile exception:', err?.message);
+        }
       }
 
       console.log('[login] 9. building user object');
