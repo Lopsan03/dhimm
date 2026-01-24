@@ -21,18 +21,29 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      console.log('[login] attempting sign in with', email);
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      console.log('[login] auth response:', { error: error?.message, userId: data?.user?.id });
+      console.log('[login] 1. starting sign in with', email);
       
-      if (error) throw error;
+      const signInPromise = supabase.auth.signInWithPassword({ email, password });
+      console.log('[login] 2. signInWithPassword promise created');
+      
+      const { data, error } = await signInPromise;
+      console.log('[login] 3. signInWithPassword resolved, error:', error?.message, 'user:', data?.user?.id);
+      
+      if (error) {
+        console.log('[login] 4a. error from signInWithPassword, throwing');
+        throw error;
+      }
 
+      console.log('[login] 4b. no error, checking data.user');
       const authUser = data.user;
-      if (!authUser) throw new Error('No se pudo iniciar sesión.');
+      console.log('[login] 5. authUser:', authUser?.id);
+      
+      if (!authUser) {
+        console.log('[login] 6. authUser is null, throwing');
+        throw new Error('No se pudo iniciar sesión.');
+      }
 
-      console.log('[login] auth success, user id:', authUser.id, 'email:', authUser.email);
-
-      // Try to fetch profile, but don't block on failure
+      console.log('[login] 7. fetching profile for', authUser.id);
       let profileData: any = null;
       try {
         const { data: pData, error: pError } = await supabase
@@ -41,16 +52,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           .eq('id', authUser.id)
           .single();
 
+        console.log('[login] 8. profile response:', { hasError: !!pError, hasData: !!pData });
+        
         if (!pError) {
           profileData = pData;
-          console.log('[login] profile fetched successfully');
+          console.log('[login] 9. profile fetched');
         } else {
-          console.warn('[login] profile fetch error:', pError.message);
+          console.warn('[login] 9. profile error:', pError.message);
         }
       } catch (err: any) {
-        console.warn('[login] profile fetch exception:', err.message);
+        console.warn('[login] 9b. profile exception:', err.message);
       }
 
+      console.log('[login] 10. building user object, profileData=', !!profileData);
       let user: User;
 
       if (profileData) {
@@ -62,8 +76,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           addresses: profileData.addresses || []
         };
       } else {
-        // Fallback: use auth metadata
-        console.log('[login] using auth metadata as fallback');
+        console.log('[login] 11. using auth metadata fallback');
         user = {
           id: authUser.id,
           name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuario',
@@ -73,15 +86,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         };
       }
 
-      console.log('[login] final user object:', { id: user.id, name: user.name, role: user.role, email: user.email });
+      console.log('[login] 12. user built:', { id: user.id, role: user.role });
       localStorage.setItem('dhimma_user', JSON.stringify(user));
+      console.log('[login] 13. localStorage set');
+      
       onLogin(user);
+      console.log('[login] 14. onLogin called');
 
       const redirectTo = user.role === 'admin' ? '/admin' : '/dashboard';
-      console.log('[login] navigating to:', redirectTo);
+      console.log('[login] 15. navigating to:', redirectTo);
       navigate(redirectTo);
+      console.log('[login] 16. navigate called');
     } catch (err: any) {
-      console.error('[login] error:', err.message);
+      console.error('[login] ERROR:', err.message);
       setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
       setLoading(false);
     }
