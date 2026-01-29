@@ -222,6 +222,43 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
           {/* Shipping Address (only shown if shipping is selected) */}
           {formData.deliveryMethod === 'shipping' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Saved Addresses for Logged-in Users */}
+              {user && user.addresses && user.addresses.length > 0 && (
+                <div className="md:col-span-2 space-y-2 mb-4">
+                  <label className="text-sm font-bold text-slate-700">Mis direcciones guardadas</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {user.addresses.map((savedAddress, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, address: savedAddress })}
+                        className={`p-3 rounded-xl border-2 transition-all text-left ${
+                          formData.address === savedAddress
+                            ? 'border-blue-600 bg-blue-50'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                            formData.address === savedAddress ? 'border-blue-600' : 'border-slate-300'
+                          }`}>
+                            {formData.address === savedAddress && (
+                              <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                            )}
+                          </div>
+                          <span className="text-sm font-medium text-slate-700">{savedAddress}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 mt-4">
+                    <div className="flex-grow h-px bg-slate-200"></div>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">O usa una nueva dirección</span>
+                    <div className="flex-grow h-px bg-slate-200"></div>
+                  </div>
+                </div>
+              )}
+              
               <div className="md:col-span-2 space-y-2">
                 <label className="text-sm font-bold text-slate-700">Dirección de envío</label>
                 <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" placeholder="Calle y número" />

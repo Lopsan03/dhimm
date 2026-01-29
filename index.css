@@ -1,0 +1,58 @@
+/* Custom scrollbar styling for modal forms */
+.modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.modal-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 8px 0;
+}
+
+.modal-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Smooth scroll behavior */
+.modal-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Fade effect at top and bottom of scroll area */
+.scroll-fade-container {
+  position: relative;
+}
+
+.scroll-fade-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 6px;
+  height: 20px;
+  background: linear-gradient(to bottom, white, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.scroll-fade-container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 6px;
+  height: 20px;
+  background: linear-gradient(to top, white, transparent);
+  pointer-events: none;
+  z-index: 1;
+}

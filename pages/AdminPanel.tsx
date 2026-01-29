@@ -440,12 +440,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       {/* Edit Product Modal */}
       {showEditModal && editingProduct && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-[3rem] max-w-2xl w-full shadow-2xl overflow-hidden animate-scaleIn border border-white">
-            <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+          <div className="bg-white rounded-[3rem] max-w-2xl w-full max-h-[90vh] shadow-2xl animate-scaleIn border border-white flex flex-col overflow-hidden">
+            <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30 flex-shrink-0">
               <h2 className="text-2xl font-black text-slate-900 tracking-tighter">Editar Producto</h2>
               <button onClick={closeEditModal} className="w-12 h-12 rounded-full hover:bg-white flex items-center justify-center text-slate-400 transition-all shadow-sm"><i className="fas fa-times"></i></button>
             </div>
-            <form onSubmit={handleSaveProduct} className="p-10 space-y-8">
+            <form onSubmit={handleSaveProduct} className="p-10 space-y-8 modal-scroll overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre *</label>
@@ -557,12 +557,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       {/* Create Product Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-[3rem] max-w-2xl w-full shadow-2xl overflow-hidden animate-scaleIn border border-white">
-            <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+          <div className="bg-white rounded-[3rem] max-w-2xl w-full max-h-[90vh] shadow-2xl animate-scaleIn border border-white flex flex-col overflow-hidden">
+            <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30 flex-shrink-0">
               <h2 className="text-2xl font-black text-slate-900 tracking-tighter">Nuevo Producto</h2>
               <button onClick={closeCreateModal} className="w-12 h-12 rounded-full hover:bg-white flex items-center justify-center text-slate-400 transition-all shadow-sm"><i className="fas fa-times"></i></button>
             </div>
-            <form onSubmit={handleCreateProduct} className="p-10 space-y-8">
+            <form onSubmit={handleCreateProduct} className="p-10 space-y-8 modal-scroll overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre *</label>
