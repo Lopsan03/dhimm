@@ -9,23 +9,38 @@ interface AdminPanelProps {
   orders: Order[];
   onUpdateProduct: (p: Product) => void;
   onUpdateOrder: (id: string, status: any) => void;
+  onCreateProduct: (p: Product) => void;
+  onDeleteProduct: (id: string) => void;
+  onUploadProductImage: (file: File) => Promise<string>;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProduct, onUpdateOrder }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProduct, onUpdateOrder, onCreateProduct, onDeleteProduct, onUploadProductImage }) => {
   const [tab, setTab] = useState<'inventory' | 'orders'>('inventory');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterOrderStatus, setFilterOrderStatus] = useState('All');
   const [editForm, setEditForm] = useState({
+    name: '',
     price: 0,
     stock: 0,
     description: '',
     category: 'Cremallera Hidráulica' as const,
     brand: '',
-    estado: '',
     compatibleModels: '' as any
   });
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    price: 0,
+    stock: 0,
+    description: '',
+    category: 'Cremallera Hidráulica' as const,
+    brand: '',
+    compatibleModels: '' as any
+  });
+  const [createImageFile, setCreateImageFile] = useState<File | null>(null);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
@@ -54,28 +69,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
     setEditForm({
+      name: product.name,
       price: product.price,
       stock: product.stock,
       description: product.description || '',
       category: product.category,
       brand: product.brand,
-      estado: product.estado || '',
       compatibleModels: (product.compatibleModels || []).join(', ')
     });
+    setEditImageFile(null);
     setShowEditModal(true);
   };
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingProduct) {
+      let imageUrl = editingProduct.image;
+      try {
+        if (editImageFile) {
+          imageUrl = await onUploadProductImage(editImageFile);
+        }
+      } catch (err) {
+        console.error('Error uploading image:', err);
+        alert('Error al subir la imagen. Por favor intenta de nuevo.');
+        return;
+      }
+
       onUpdateProduct({
         ...editingProduct,
+        name: editForm.name,
         price: editForm.price,
         stock: editForm.stock,
         description: editForm.description,
         category: editForm.category,
         brand: editForm.brand,
-        estado: editForm.estado,
+        image: imageUrl,
         compatibleModels: editForm.compatibleModels.split(',').map((m: string) => m.trim()).filter((m: string) => m)
       });
       closeEditModal();
@@ -86,14 +114,64 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
     setShowEditModal(false);
     setEditingProduct(null);
     setEditForm({
+      name: '',
       price: 0,
       stock: 0,
       description: '',
       category: 'Cremallera Hidráulica' as const,
       brand: '',
-      estado: '',
       compatibleModels: '' as any
     });
+    setEditImageFile(null);
+  };
+
+  const openCreateModal = () => {
+    setCreateForm({
+      name: '',
+      price: 0,
+      stock: 0,
+      description: '',
+      category: 'Cremallera Hidráulica' as const,
+      brand: '',
+      compatibleModels: '' as any
+    });
+    setCreateImageFile(null);
+    setShowCreateModal(true);
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+  };
+
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createImageFile) {
+      alert('Por favor agrega una imagen');
+      return;
+    }
+    let imageUrl = '';
+    try {
+      if (createImageFile) {
+        imageUrl = await onUploadProductImage(createImageFile);
+      }
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      alert('Error al subir la imagen. Por favor intenta de nuevo.');
+      return;
+    }
+    const newProduct: Product = {
+      id: `tmp-${Date.now()}`,
+      name: createForm.name,
+      category: createForm.category,
+      brand: createForm.brand,
+      compatibleModels: createForm.compatibleModels.split(',').map((m: string) => m.trim()).filter((m: string) => m),
+      price: createForm.price,
+      stock: createForm.stock,
+      image: imageUrl,
+      description: createForm.description,
+    };
+    onCreateProduct(newProduct);
+    closeCreateModal();
   };
 
   return (
@@ -162,6 +240,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
               placeholder="Todas las Categorías"
             />
             <button 
+              onClick={openCreateModal}
+              className="flex items-center gap-2 px-8 py-4 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-blue-700 rounded-2xl transition-all shadow-lg h-[52px]"
+            >
+              <i className="fas fa-plus"></i> Agregar Producto
+            </button>
+            <button 
               onClick={() => setFilterCategory('All')}
               className="flex items-center gap-2 px-8 py-4 bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 rounded-2xl transition-all shadow-lg h-[52px]"
             >
@@ -206,6 +290,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                     <td className="px-10 py-6 text-right">
                       <button onClick={() => openEditModal(p)} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all">
                         <i className="fas fa-edit"></i>
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if (confirm(`¿Eliminar el producto "${p.name}"?`)) onDeleteProduct(p.id);
+                        }}
+                        className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl transition-all"
+                      >
+                        <i className="fas fa-trash"></i>
                       </button>
                     </td>
                   </tr>
@@ -356,6 +448,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
             <form onSubmit={handleSaveProduct} className="p-10 space-y-8">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre *</label>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="Nombre del producto"
+                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
+                    value={editForm.name} 
+                    onChange={e => setEditForm({...editForm, name: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Subir nueva imagen</label>
+                  <label className="flex items-center justify-between w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-all">
+                    <span className="text-sm font-bold text-slate-700 truncate">
+                      {editImageFile ? editImageFile.name : 'Seleccionar archivo'}
+                    </span>
+                    <span className="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white rounded-xl shadow">
+                      Subir
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => setEditImageFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio *</label>
                   <input 
                     type="number" 
@@ -403,26 +526,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                   />
                   <CustomDropdown 
                     label="Marca"
-                    options={['', 'Toyota', 'Nissan', 'Ford', 'Chevrolet', 'Volkswagen', 'Mazda', 'BMW', 'Mercedes-Benz', 'Hyundai', 'Kia']}
+                    options={['', 'Abarth', 'Acura', 'Alfa Romeo', 'Aston Martin', 'Audi', 'Bentley', 'BMW', 'Buick', 'BYD', 'Cadillac', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Citroën', 'Cupra', 'Dacia', 'Daihatsu', 'Dodge', 'DS Automobiles', 'Ferrari', 'Fiat', 'Ford', 'Geely', 'Genesis', 'GMC', 'Great Wall', 'Haval', 'Honda', 'Hyundai', 'Infiniti', 'Isuzu', 'Jaguar', 'Jeep', 'Kia', 'Lamborghini', 'Land Rover', 'Lexus', 'Lincoln', 'Lotus', 'Maserati', 'Mazda', 'McLaren', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Opel', 'Peugeot', 'Porsche', 'Ram', 'Renault', 'Rolls-Royce', 'SEAT', 'Skoda', 'Smart', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo', 'FAW', 'Foton', 'JAC', 'Jetour', 'Kaiyi']}
                     selected={editForm.brand}
                     onSelect={(val) => setEditForm({...editForm, brand: val})}
                     placeholder="Selecciona una marca"
                     required
                   />
-                  <CustomDropdown 
-                    label="Estado"
-                    options={['', 'Premium', 'Estándar', 'Económico', 'Refaccionado']}
-                    selected={editForm.estado}
-                    onSelect={(val) => setEditForm({...editForm, estado: val})}
-                    placeholder="Selecciona un estado"
-                  />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Compatibilidad</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Modelos y Años Compatibles</label>
                 <textarea 
-                  placeholder="Marcas y modelos compatibles (separados por comas)..."
+                  placeholder="Ej: Corolla 2010-2015, Civic 2012-2016, Sentra 2014-2018"
                   className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 resize-none h-24"
                   value={editForm.compatibleModels} 
                   onChange={e => setEditForm({...editForm, compatibleModels: e.target.value})}
@@ -432,6 +548,123 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
               <div className="flex gap-4 pt-6">
                 <button type="button" onClick={closeEditModal} className="flex-grow py-5 bg-slate-50 text-slate-500 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-100 transition-all">Cancelar</button>
                 <button type="submit" className="flex-grow py-5 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all transform hover:-translate-y-1">Guardar Cambios</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Product Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-[3rem] max-w-2xl w-full shadow-2xl overflow-hidden animate-scaleIn border border-white">
+            <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tighter">Nuevo Producto</h2>
+              <button onClick={closeCreateModal} className="w-12 h-12 rounded-full hover:bg-white flex items-center justify-center text-slate-400 transition-all shadow-sm"><i className="fas fa-times"></i></button>
+            </div>
+            <form onSubmit={handleCreateProduct} className="p-10 space-y-8">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre *</label>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="Nombre del producto"
+                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
+                    value={createForm.name} 
+                    onChange={e => setCreateForm({...createForm, name: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Subir imagen *</label>
+                  <label className="flex items-center justify-between w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-all">
+                    <span className="text-sm font-bold text-slate-700 truncate">
+                      {createImageFile ? createImageFile.name : 'Seleccionar archivo'}
+                    </span>
+                    <span className="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white rounded-xl shadow">
+                      Subir
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => setCreateImageFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio *</label>
+                  <input 
+                    type="number" 
+                    required 
+                    step="0.01"
+                    placeholder="0.00"
+                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
+                    value={createForm.price} 
+                    onChange={e => setCreateForm({...createForm, price: Number(e.target.value)})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock *</label>
+                  <input 
+                    type="number" 
+                    required 
+                    min="0"
+                    placeholder="0"
+                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
+                    value={createForm.stock} 
+                    onChange={e => setCreateForm({...createForm, stock: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Detalles del Producto</label>
+                <textarea 
+                  placeholder="Descripción del producto, características principales..."
+                  className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 resize-none h-24"
+                  value={createForm.description} 
+                  onChange={e => setCreateForm({...createForm, description: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Ficha Técnica</h3>
+                <div className="grid grid-cols-1 gap-6">
+                  <CustomDropdown 
+                    label="Categoría"
+                    options={['Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica']}
+                    selected={createForm.category}
+                    onSelect={(val: any) => setCreateForm({...createForm, category: val})}
+                    required
+                  />
+                  <CustomDropdown 
+                    label="Marca"
+                    options={['', 'Abarth', 'Acura', 'Alfa Romeo', 'Aston Martin', 'Audi', 'Bentley', 'BMW', 'Buick', 'BYD', 'Cadillac', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Citroën', 'Cupra', 'Dacia', 'Daihatsu', 'Dodge', 'DS Automobiles', 'Ferrari', 'Fiat', 'Ford', 'Geely', 'Genesis', 'GMC', 'Great Wall', 'Haval', 'Honda', 'Hyundai', 'Infiniti', 'Isuzu', 'Jaguar', 'Jeep', 'Kia', 'Lamborghini', 'Land Rover', 'Lexus', 'Lincoln', 'Lotus', 'Maserati', 'Mazda', 'McLaren', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Opel', 'Peugeot', 'Porsche', 'Ram', 'Renault', 'Rolls-Royce', 'SEAT', 'Skoda', 'Smart', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo', 'FAW', 'Foton', 'JAC', 'Jetour', 'Kaiyi']}
+                    selected={createForm.brand}
+                    onSelect={(val) => setCreateForm({...createForm, brand: val})}
+                    placeholder="Selecciona una marca"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Modelos y Años Compatibles</label>
+                <textarea 
+                  placeholder="Ej: Corolla 2010-2015, Civic 2012-2016, Sentra 2014-2018"
+                  className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 resize-none h-24"
+                  value={createForm.compatibleModels} 
+                  onChange={e => setCreateForm({...createForm, compatibleModels: e.target.value})}
+                />
+              </div>
+
+              <div className="flex gap-4 pt-6">
+                <button type="button" onClick={closeCreateModal} className="flex-grow py-5 bg-slate-50 text-slate-500 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-100 transition-all">Cancelar</button>
+                <button type="submit" className="flex-grow py-5 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all transform hover:-translate-y-1">Crear Producto</button>
               </div>
             </form>
           </div>

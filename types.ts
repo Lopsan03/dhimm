@@ -19,7 +19,6 @@ export interface Product {
   stock: number;
   image: string;
   description: string;
-  estado?: string;
   compatibleModels?: string[];
 }
 
@@ -27,7 +26,7 @@ export interface CartItem extends Product {
   quantity: number;
 }
 
-export type OrderStatus = 'pending' | 'approved' | 'rejected' | 'shipped' | 'completed';
+export type OrderStatus = 'Pendiente' | 'Pagado' | 'Enviado' | 'Completado' | 'Refunded' | 'ChargedBack' | 'InDispute' | 'rejected';
 
 export interface Order {
   id: string;
@@ -39,6 +38,13 @@ export interface Order {
   status: OrderStatus;
   date: string;
   shippingAddress: string;
+  // Payment tracking fields (production)
+  payment_id?: string;
+  merchant_order_id?: string;
+  currency?: string;
+  transaction_amount?: number;
+  payment_status?: string;
+  paid_at?: string;
 }
 
 export interface AuthState {

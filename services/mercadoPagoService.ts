@@ -24,13 +24,26 @@ export const createPreference = async (
   webhookUrl?: string
 ) => {
   try {
-    const preference = {
-      items: items.map(item => ({
-        title: item.name,
-        unit_price: Number(item.price),
-        quantity: item.quantity,
+    // Build items array with shipping cost
+    const preferenceItems = items.map(item => ({
+      title: item.name,
+      unit_price: Number(item.price),
+      quantity: item.quantity,
+      currency_id: 'MXN'
+    }));
+
+    // Add shipping cost as a separate item if applicable
+    if (shipment?.cost && shipment.cost > 0) {
+      preferenceItems.push({
+        title: 'Envío',
+        unit_price: Number(shipment.cost),
+        quantity: 1,
         currency_id: 'MXN'
-      })),
+      });
+    }
+
+    const preference = {
+      items: preferenceItems,
       payer: {
         name: payer.name || 'Cliente',
         email: payer.email,

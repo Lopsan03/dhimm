@@ -21,10 +21,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
     address: user?.addresses[0] || '',
     city: 'Monterrey',
     zip: '',
+    deliveryMethod: 'shipping' as 'shipping' | 'pickup',
   });
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shipping = subtotal > 5000 ? 0 : 250;
+  const shipping = formData.deliveryMethod === 'pickup' ? 0 : (subtotal > 5000 ? 0 : 250);
   const total = subtotal + shipping;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,7 +41,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
   };
 
   const handlePayWithMercadoPago = async () => {
-    if (!formData.name || !formData.email || !formData.address || !formData.zip) {
+    if (!formData.name || !formData.email) {
+      alert('Por favor completa tu nombre y correo');
+      return;
+    }
+    if (formData.deliveryMethod === 'shipping' && (!formData.address || !formData.zip)) {
       alert('Por favor completa todos los campos de envío');
       return;
     }
@@ -57,7 +62,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
         userEmail: formData.email,
         items: cart,
         total: total,
-        shippingAddress: `${formData.address}, ${formData.city}, CP ${formData.zip}`
+        deliveryMethod: formData.deliveryMethod,
+        shippingAddress: formData.deliveryMethod === 'pickup' 
+          ? 'Recoger en tienda: AV DE LA JUVENTUD #590, San Nicolás de los Garza, NL'
+          : `${formData.address}, ${formData.city}, CP ${formData.zip}`
       };
       
       // Store order details in session for waiting page
@@ -83,7 +91,12 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
       const preference = await createPreference(
         cart,
         { name: formData.name, email: formData.email },
-        { address: formData.address, city: formData.city, zip: formData.zip, cost: shipping },
+        { 
+          address: formData.deliveryMethod === 'pickup' ? 'AV DE LA JUVENTUD #590' : formData.address, 
+          city: formData.deliveryMethod === 'pickup' ? 'San Nicolás de los Garza' : formData.city, 
+          zip: formData.deliveryMethod === 'pickup' ? '66455' : formData.zip, 
+          cost: shipping 
+        },
         orderId
       );
 
@@ -127,8 +140,75 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
 
       {step === 1 && (
         <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm animate-fadeIn">
-          <h2 className="text-2xl font-bold mb-6">Datos de Envío</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <h2 className="text-2xl font-bold mb-6">Datos de Entrega</h2>
+          
+          {/* Delivery Method Selector */}
+          <div className="mb-8">
+            <label className="text-sm font-bold text-slate-700 mb-3 block">Método de entrega</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, deliveryMethod: 'shipping' })}
+                className={`p-4 rounded-xl border-2 transition-all text-left ${
+                  formData.deliveryMethod === 'shipping'
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                    formData.deliveryMethod === 'shipping' ? 'border-blue-600' : 'border-slate-300'
+                  }`}>
+                    {formData.deliveryMethod === 'shipping' && (
+                      <div className="w-3 h-3 rounded-full bg-blue-600"></div>
+                    )}
+                  </div>
+                  <div className="flex-grow">
+                    <div className="flex items-center gap-2 mb-1">
+                      <i className="fas fa-truck text-blue-600"></i>
+                      <span className="font-bold text-slate-800">Envío a domicilio</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Recibe en tu dirección</p>
+                    <p className="text-xs font-bold text-slate-600 mt-1">
+                      {subtotal > 5000 ? 'Gratis' : '$250 MXN'}
+                    </p>
+                  </div>
+                </div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, deliveryMethod: 'pickup' })}
+                className={`p-4 rounded-xl border-2 transition-all text-left ${
+                  formData.deliveryMethod === 'pickup'
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                    formData.deliveryMethod === 'pickup' ? 'border-blue-600' : 'border-slate-300'
+                  }`}>
+                    {formData.deliveryMethod === 'pickup' && (
+                      <div className="w-3 h-3 rounded-full bg-blue-600"></div>
+                    )}
+                  </div>
+                  <div className="flex-grow">
+                    <div className="flex items-center gap-2 mb-1">
+                      <i className="fas fa-store text-blue-600"></i>
+                      <span className="font-bold text-slate-800">Recoger en tienda</span>
+                    </div>
+                    <p className="text-xs text-slate-500">AV DE LA JUVENTUD #590</p>
+                    <p className="text-xs text-slate-500">San Nicolás de los Garza, NL</p>
+                    <p className="text-xs font-bold text-green-600 mt-1">Gratis</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Contact Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Nombre completo</label>
               <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" />
@@ -137,19 +217,26 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
               <label className="text-sm font-bold text-slate-700">Email</label>
               <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" />
             </div>
-            <div className="md:col-span-2 space-y-2">
-              <label className="text-sm font-bold text-slate-700">Dirección</label>
-              <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Ciudad</label>
-              <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Código Postal</label>
-              <input type="text" name="zip" value={formData.zip} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" />
-            </div>
           </div>
+
+          {/* Shipping Address (only shown if shipping is selected) */}
+          {formData.deliveryMethod === 'shipping' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-bold text-slate-700">Dirección de envío</label>
+                <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" placeholder="Calle y número" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Ciudad</label>
+                <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Código Postal</label>
+                <input type="text" name="zip" value={formData.zip} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" placeholder="66000" />
+              </div>
+            </div>
+          )}
+          
           <button onClick={() => setStep(2)} className="w-full mt-8 bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/20">Siguiente: Pago</button>
         </div>
       )}

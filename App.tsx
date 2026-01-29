@@ -138,8 +138,7 @@ const App: React.FC = () => {
           price: parseFloat(p.price),
           stock: p.stock,
           image: imageMap[p.name] || p.image,
-          description: p.description || '',
-          estado: p.estado || ''
+          description: p.description || ''
         }));
         console.log('[products] parsed count:', productsWithImages.length);
         setProducts(productsWithImages);
@@ -301,6 +300,43 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Watch for product refresh flag (set after successful payment to update stock)
+  useEffect(() => {
+    const checkRefresh = () => {
+      const refreshFlag = sessionStorage.getItem('refreshProducts');
+      if (refreshFlag === 'true') {
+        console.log('[products] Refreshing due to payment success');
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        fetch(`${backendUrl}/api/products`)
+          .then(res => res.json())
+          .then(productsData => {
+            const productsWithImages = (productsData || []).map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              category: p.category,
+              brand: p.brand,
+              compatibleModels: p.compatible_models || [],
+              price: parseFloat(p.price),
+              stock: p.stock,
+              image: imageMap[p.name] || p.image,
+              description: p.description || ''
+            }));
+            setProducts(productsWithImages);
+            console.log('[products] refreshed, new stock values loaded');
+            sessionStorage.removeItem('refreshProducts');
+          })
+          .catch(err => console.error('[products] refresh failed:', err));
+      }
+    };
+
+    // Check immediately
+    checkRefresh();
+    
+    // Also check every 2 seconds while on success page
+    const interval = setInterval(checkRefresh, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleLogin = (u: User) => {
     setUser(u);
     localStorage.setItem('dhimma_user', JSON.stringify(u));
@@ -329,7 +365,16 @@ const App: React.FC = () => {
   };
 
   const updateQuantity = (id: string, delta: number) => {
-    setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
+    setCart(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      const cartItem = cart.find(c => c.id === id);
+      const product = products.find(p => p.id === id);
+      const newQuantity = cartItem ? cartItem.quantity + delta : 1;
+      // Don't allow quantity to exceed available stock
+      const maxQuantity = product?.stock || 0;
+      const finalQuantity = Math.max(1, Math.min(newQuantity, maxQuantity));
+      return { ...item, quantity: finalQuantity };
+    }));
   };
 
   const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.id !== id));
@@ -405,6 +450,89 @@ const App: React.FC = () => {
     }
   };
 
+  const uploadProductImage = async (file: File) => {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const resp = await fetch(`${backendUrl}/api/uploads/product-image`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(errText || 'Failed to upload image');
+    }
+
+    const data = await resp.json();
+    if (!data?.url) throw new Error('Invalid image upload response');
+    return data.url as string;
+  };
+
+  const handleCreateProduct = async (newProduct: Product) => {
+    if (!user) {
+      alert('You must be logged in to create products.');
+      return;
+    }
+
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const resp = await fetch(`${backendUrl}/api/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newProduct, updated_by_admin_id: user.id })
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(errText || 'Failed to create product');
+      }
+
+      const created = await resp.json();
+      const mapped: Product = {
+        id: created.id,
+        name: created.name,
+        category: created.category,
+        brand: created.brand,
+        compatibleModels: created.compatible_models || [],
+        price: parseFloat(created.price),
+        stock: created.stock,
+        image: imageMap[created.name] || created.image,
+        description: created.description || ''
+      };
+
+      setProducts(prev => [mapped, ...prev]);
+    } catch (err) {
+      console.error('Error creating product:', err);
+      alert('Error al crear el producto. Por favor intenta de nuevo.');
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!user) {
+      alert('You must be logged in to delete products.');
+      return;
+    }
+
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const resp = await fetch(`${backendUrl}/api/products/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(errText || 'Failed to delete product');
+      }
+
+      setProducts(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      console.error('Error deleting product:', err);
+      alert('Error al eliminar el producto. Por favor intenta de nuevo.');
+    }
+  };
+
   const handleUpdateOrder = async (orderId: string, newStatus: string) => {
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -446,7 +574,7 @@ const App: React.FC = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/dashboard/*" element={user ? <UserDashboard user={user} orders={orders.filter(o => o.userId === user.id)} onUpdateUser={handleUpdateUser} /> : <Navigate to="/login" />} />
-            <Route path="/admin/*" element={user?.role === 'admin' ? <AdminPanel products={products} orders={orders} onUpdateProduct={handleUpdateProduct} onUpdateOrder={handleUpdateOrder} /> : <Navigate to="/" />} />
+            <Route path="/admin/*" element={user?.role === 'admin' ? <AdminPanel products={products} orders={orders} onUpdateProduct={handleUpdateProduct} onUpdateOrder={handleUpdateOrder} onCreateProduct={handleCreateProduct} onDeleteProduct={handleDeleteProduct} onUploadProductImage={uploadProductImage} /> : <Navigate to="/" />} />
           </Routes>
         </main>
         <MobileBottomNav />

@@ -4,6 +4,13 @@ import { supabase } from '../services/supabaseClient';
 
 const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:3001';
 
+// Simple logger for frontend
+const logger = {
+  info: (msg: string, data?: any) => console.log(`[INFO] ${msg}`, data),
+  error: (msg: string, data?: any) => console.error(`[ERROR] ${msg}`, data),
+  warn: (msg: string, data?: any) => console.warn(`[WARN] ${msg}`, data)
+};
+
 const CheckoutWaiting: React.FC = () => {
   const navigate = useNavigate();
   const { orderId } = useParams<{ orderId: string }>();
@@ -45,14 +52,36 @@ const CheckoutWaiting: React.FC = () => {
         setStatus(normalized);
         setNotFoundCount(0); // Reset 404 counter on successful fetch
 
-        // Redirect when payment is paid/approved (supports both Spanish and English)
-        if (order && order.id && ['pagado', 'approved', 'completado', 'completed', 'enviado', 'shipped'].includes(normalized)) {
-          sessionStorage.removeItem('pendingOrderId');
-          sessionStorage.removeItem('orderData');
-          sessionStorage.removeItem('webhookUrl');
-          setTimeout(() => navigate('/checkout/success', { state: { order } }), 2000);
+        // Redirect when payment is confirmed (supports all statuses)
+        if (order && order.id) {
+          const normalizedStatus = (order.status || '').toString().toLowerCase();
+          
+          // Success: Payment approved/confirmed or order shipped
+          if (['pagado', 'approved', 'completado', 'completed', 'enviado', 'shipped'].includes(normalizedStatus)) {
+            sessionStorage.removeItem('pendingOrderId');
+            sessionStorage.removeItem('orderData');
+            sessionStorage.removeItem('webhookUrl');
+            setTimeout(() => navigate('/checkout/success', { state: { order } }), 2000);
+            return;
+          }
+          
+          // Still pending (e.g., SPEI/OXXO awaiting confirmation)
+          if (['pendiente', 'pending', 'in_process', 'in_mediation'].includes(normalizedStatus)) {
+            logger.info('Order pending confirmation', { orderId, status: order.status });
+            setStatus(normalizedStatus);
+            return;
+          }
+          
+          // Failure: Payment rejected/cancelled/disputed
+          if (['rejected', 'cancelled', 'refunded', 'chargedback', 'indispute'].includes(normalizedStatus)) {
+            logger.error('Payment failed', { orderId, status: order.status });
+            sessionStorage.removeItem('pendingOrderId');
+            sessionStorage.removeItem('orderData');
+            setStatus('rejected');
+            setTimeout(() => navigate('/checkout/failure'), 1500);
+            return;
+          }
         }
-        // If in future we create orders for rejected payments, handle here
       } catch (error) {
         console.error('Error polling order:', error);
       }
@@ -98,11 +127,13 @@ const CheckoutWaiting: React.FC = () => {
               ? 'El pago fue rechazado. Intenta nuevamente.'
               : 'Estamos verificando tu pago con Mercado Pago'}
         </p>
-        {status === 'pending' && (
+        {['pending', 'pendiente', 'in_process', 'in_mediation'].includes(status) && (
           <>
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-slate-600">
               <i className="fas fa-info-circle text-blue-600 mr-2"></i>
-              Este proceso puede tardar hasta 2 minutos. Por favor no cierres esta ventana.
+              {attempts >= 5
+                ? 'El pago sigue pendiente. Si ves el cargo en tu cuenta, contáctanos para verificar tu pedido.'
+                : 'Este proceso puede tardar hasta 2 minutos. Por favor no cierres esta ventana.'}
             </div>
             <p className="text-xs text-slate-400">Intento {attempts} de {maxAttempts}</p>
           </>
@@ -110,7 +141,7 @@ const CheckoutWaiting: React.FC = () => {
         {status === 'approved' && (
           <p className="text-sm text-slate-400 mt-4">Redirigiendo a tu dashboard...</p>
         )}
-        {attempts >= maxAttempts && status === 'pending' && (
+        {attempts >= maxAttempts && ['pending', 'pendiente', 'in_process', 'in_mediation'].includes(status) && (
           <div className="mt-6">
             <p className="text-slate-600 mb-4">
               No pudimos confirmar tu pago automáticamente. Revisa tu email o dashboard en unos minutos.

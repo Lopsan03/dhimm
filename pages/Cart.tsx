@@ -54,13 +54,23 @@ const Cart: React.FC<CartProps> = ({ cart, updateQuantity, remove }) => {
                 
                 <div className="flex justify-between items-end">
                   <div className="flex items-center border border-slate-200 rounded-lg">
-                    <button onClick={() => updateQuantity(item.id, -1)} className="px-3 py-1 text-slate-500 hover:text-blue-600 transition-colors">-</button>
+                    <button 
+                      onClick={() => updateQuantity(item.id, -1)} 
+                      disabled={item.quantity <= 1}
+                      className="px-3 py-1 text-slate-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >-</button>
                     <span className="px-3 py-1 font-bold text-sm min-w-[2.5rem] text-center">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, 1)} className="px-3 py-1 text-slate-500 hover:text-blue-600 transition-colors">+</button>
+                    <button 
+                      onClick={() => updateQuantity(item.id, 1)} 
+                      disabled={item.quantity >= item.stock}
+                      title={item.quantity >= item.stock ? `Stock máximo: ${item.stock}` : ''}
+                      className="px-3 py-1 text-slate-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >+</button>
                   </div>
                   <div className="text-right">
                     <p className="text-slate-400 text-[10px] line-through">${(item.price * 1.1).toLocaleString('es-MX')}</p>
                     <p className="text-slate-900 font-bold">${(item.price * item.quantity).toLocaleString('es-MX')}</p>
+                    <p className="text-[9px] text-slate-400 mt-1">Stock: {item.stock}</p>
                   </div>
                 </div>
               </div>

@@ -15,12 +15,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
   const navigate = useNavigate();
   const product = products.find(p => p.id === id);
   const carouselRef = useRef<HTMLDivElement>(null);
-  
-  const [reviews, setReviews] = useState([
-    { name: 'Ricardo G.', stars: 5, comment: 'Excelente calidad, le quedó perfecto a mi Tsuru. El envío fue muy rápido.' },
-    { name: 'Maria L.', stars: 4, comment: 'Muy buena atención técnica, me ayudaron a confirmar la compatibilidad.' }
-  ]);
-  const [newReview, setNewReview] = useState({ name: '', comment: '' });
 
   if (!product) {
     return (
@@ -50,14 +44,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
     }
   };
 
-  const handleAddReview = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newReview.name && newReview.comment) {
-      setReviews([{ name: newReview.name, stars: 5, comment: newReview.comment }, ...reviews]);
-      setNewReview({ name: '', comment: '' });
-    }
-  };
-
   const relatedProducts = products.filter(p => p.id !== product.id).slice(0, 8);
 
   return (
@@ -81,14 +67,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
 
           <div className="flex flex-col">
             <span className="text-blue-600 font-black tracking-widest uppercase text-xs mb-2">{product.brand}</span>
-            <h1 className="text-3xl md:text-5xl font-black text-slate-900 mb-4 leading-tight">{product.name}</h1>
-            
-            <div className="flex items-center gap-2 mb-8 text-orange-400">
-              <div className="flex text-sm">
-                <i className="fas fa-star"></i><i className="fas fa-star"></i><i className="fas fa-star"></i><i className="fas fa-star"></i><i className="fas fa-star"></i>
-              </div>
-              <span className="text-slate-400 text-sm font-bold uppercase tracking-wider">(24 reseñas)</span>
-            </div>
+            <h1 className="text-3xl md:text-5xl font-black text-slate-900 mb-8 leading-tight">{product.name}</h1>
 
             <div className="bg-slate-50/50 rounded-[2.5rem] p-10 border-2 border-slate-50">
               <div className="flex items-end gap-3 mb-8">
@@ -142,7 +121,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
                 <ul className="space-y-3 text-sm text-slate-600">
                   <li className="flex justify-between border-b border-slate-200/50 pb-2"><strong>Categoría:</strong> <span>{product.category}</span></li>
                   <li className="flex justify-between border-b border-slate-200/50 pb-2"><strong>Marca:</strong> <span>{product.brand}</span></li>
-                  <li className="flex justify-between"><strong>Estado:</strong> <span>{product.estado || 'Premium'}</span></li>
                 </ul>
               </div>
               <div className="bg-slate-50 p-8 rounded-3xl">
@@ -151,8 +129,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
                 </h3>
                 <ul className="space-y-2 text-sm text-slate-700">
                   {product.compatibleModels.map((m, i) => (
-                    <li key={i} className="flex items-start gap-2 font-medium">
-                      <i className="fas fa-check mt-1 text-green-500"></i> {m}
+                    <li key={`${m}-${i}`} className="flex items-start gap-2">
+                      <i className="fas fa-check mt-1 text-green-500"></i>
+                      <span>{m}</span>
                     </li>
                   ))}
                 </ul>
@@ -175,42 +154,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
                 <div className="w-12 h-12 bg-white shadow-md rounded-xl flex items-center justify-center text-blue-600 flex-shrink-0"><i className="fas fa-truck-loading"></i></div>
                 <div><h4 className="font-black text-slate-800 text-sm">Logística Express</h4><p className="text-xs text-slate-500 mt-1">Envío inmediato al confirmar tu compra.</p></div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Reviews Section */}
-        <div className="py-16 border-t border-slate-100">
-          <h2 className="text-3xl font-black text-slate-900 mb-10">Experiencias de nuestros clientes</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-            <div className="space-y-6">
-              {reviews.map((r, i) => (
-                <div key={i} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex justify-between items-start mb-3">
-                    <h4 className="font-black text-slate-800">{r.name}</h4>
-                    <div className="flex text-orange-400 text-[10px]">
-                      {[...Array(r.stars)].map((_, j) => <i key={j} className="fas fa-star"></i>)}
-                    </div>
-                  </div>
-                  <p className="text-slate-600 text-sm italic leading-relaxed">"{r.comment}"</p>
-                </div>
-              ))}
-            </div>
-            <div className="bg-slate-50 p-10 rounded-[2.5rem] border-2 border-white shadow-xl shadow-slate-200/50">
-              <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-6">Cuéntanos tu experiencia</h3>
-              <form onSubmit={handleAddReview} className="space-y-5">
-                <input 
-                  type="text" placeholder="Nombre completo" 
-                  className="w-full p-4 bg-white rounded-2xl outline-none font-medium border border-transparent focus:border-blue-500 transition-all" 
-                  value={newReview.name} onChange={e => setNewReview({...newReview, name: e.target.value})}
-                />
-                <textarea 
-                  placeholder="Escribe tu opinión aquí..." 
-                  rows={4} className="w-full p-4 bg-white rounded-2xl outline-none font-medium border border-transparent focus:border-blue-500 transition-all"
-                  value={newReview.comment} onChange={e => setNewReview({...newReview, comment: e.target.value})}
-                ></textarea>
-                <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all">Publicar reseña</button>
-              </form>
             </div>
           </div>
         </div>
