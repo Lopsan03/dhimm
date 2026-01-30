@@ -51,21 +51,18 @@ const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h4 className="text-white font-bold mb-4">Horarios</h4>
-            <ul className="space-y-2 text-sm">
-              <li className="flex justify-between">
-                <span>Lunes - Viernes:</span>
-                <span className="text-slate-100">9:00 - 18:30</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Sábados:</span>
-                <span className="text-slate-100">9:00 - 14:00</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Domingos:</span>
-                <span className="text-red-400">Cerrado</span>
-              </li>
-            </ul>
+            <h4 className="text-white font-bold mb-4">Redes Sociales</h4>
+            <div className="flex gap-4">
+              <a href="https://www.facebook.com/DHIMMAOFICIAL/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-slate-800 hover:bg-blue-600 rounded-lg flex items-center justify-center transition-all transform hover:scale-110 text-slate-300 hover:text-white">
+                <i className="fab fa-facebook-f"></i>
+              </a>
+              <a href="https://www.instagram.com/dhimmaautomotriz?igsh=MWlwaXNqcmc5MHFrYw==" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-slate-800 hover:bg-pink-600 rounded-lg flex items-center justify-center transition-all transform hover:scale-110 text-slate-300 hover:text-white">
+                <i className="fab fa-instagram"></i>
+              </a>
+              <a href="https://www.tiktok.com/@automotriz.dhimma" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-lg flex items-center justify-center transition-all transform hover:scale-110 text-slate-300 hover:text-white">
+                <i className="fab fa-tiktok"></i>
+              </a>
+            </div>
           </div>
         </div>
 
