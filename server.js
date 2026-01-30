@@ -796,6 +796,7 @@ app.post('/api/mp/webhook', async (req, res) => {
         user_id: userIdForInsert,
         user_name: pendingOrderData.userName || 'Cliente',
         user_email: pendingOrderData.userEmail || '',
+        user_phone: pendingOrderData.userPhone || '',
         items: pendingOrderData.items || [],
         total: pendingOrderData.total || 0,
         shipping_address: pendingOrderData.shippingAddress || '',

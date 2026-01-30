@@ -17,11 +17,15 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
+    lastName: '',
     email: user?.email || '',
+    phone: '',
     address: user?.addresses[0] || '',
     city: 'Monterrey',
+    state: '',
     zip: '',
     deliveryMethod: 'shipping' as 'shipping' | 'pickup',
+    pickupLocation: 'AV DE LA JUVENTUD #590, San Nicolás de los Garza, NL',
   });
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -41,11 +45,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
   };
 
   const handlePayWithMercadoPago = async () => {
-    if (!formData.name || !formData.email) {
-      alert('Por favor completa tu nombre y correo');
+    if (!formData.name || !formData.lastName || !formData.email || !formData.phone) {
+      alert('Por favor completa todos los campos requeridos');
       return;
     }
-    if (formData.deliveryMethod === 'shipping' && (!formData.address || !formData.zip)) {
+    if (formData.deliveryMethod === 'shipping' && (!formData.address || !formData.city || !formData.state || !formData.zip)) {
       alert('Por favor completa todos los campos de envío');
       return;
     }
@@ -58,14 +62,15 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
       const orderData = {
         id: orderId,
         userId: user?.id || 'guest',
-        userName: formData.name,
+        userName: `${formData.name} ${formData.lastName}`,
         userEmail: formData.email,
+        userPhone: formData.phone,
         items: cart,
         total: total,
         deliveryMethod: formData.deliveryMethod,
         shippingAddress: formData.deliveryMethod === 'pickup' 
-          ? 'Recoger en tienda: AV DE LA JUVENTUD #590, San Nicolás de los Garza, NL'
-          : `${formData.address}, ${formData.city}, CP ${formData.zip}`
+          ? `Recoger en tienda: ${formData.pickupLocation}`
+          : `${formData.address}, ${formData.city}, ${formData.state}, CP ${formData.zip}`
       };
       
       // Store order details in session for waiting page
@@ -198,8 +203,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
                       <i className="fas fa-store text-blue-600"></i>
                       <span className="font-bold text-slate-800">Recoger en tienda</span>
                     </div>
-                    <p className="text-xs text-slate-500">AV DE LA JUVENTUD #590</p>
-                    <p className="text-xs text-slate-500">San Nicolás de los Garza, NL</p>
+                    <p className="text-xs text-slate-500">Selecciona tu sucursal</p>
                     <p className="text-xs font-bold text-green-600 mt-1">Gratis</p>
                   </div>
                 </div>
@@ -207,15 +211,87 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
             </div>
           </div>
 
+          {/* Pickup Location Selector (only shown if pickup is selected) */}
+          {formData.deliveryMethod === 'pickup' && (
+            <div className="mb-8">
+              <label className="text-sm font-bold text-slate-700 mb-3 block">Sucursal para recolección</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, pickupLocation: 'AV DE LA JUVENTUD #590, San Nicolás de los Garza, NL' })}
+                  className={`p-4 rounded-xl border-2 transition-all text-left ${
+                    formData.pickupLocation === 'AV DE LA JUVENTUD #590, San Nicolás de los Garza, NL'
+                      ? 'border-blue-600 bg-blue-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                      formData.pickupLocation === 'AV DE LA JUVENTUD #590, San Nicolás de los Garza, NL' ? 'border-blue-600' : 'border-slate-300'
+                    }`}>
+                      {formData.pickupLocation === 'AV DE LA JUVENTUD #590, San Nicolás de los Garza, NL' && (
+                        <div className="w-3 h-3 rounded-full bg-blue-600"></div>
+                      )}
+                    </div>
+                    <div className="flex-grow">
+                      <div className="flex items-center gap-2 mb-1">
+                        <i className="fas fa-map-marker-alt text-blue-600"></i>
+                        <span className="font-bold text-slate-800">Monterrey</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">AV DE LA JUVENTUD #590</p>
+                      <p className="text-xs text-slate-600">San Nicolás de los Garza, NL</p>
+                    </div>
+                  </div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, pickupLocation: 'Av. Itzáes 665 con, Sambulá, 97250 Mérida, Yuc.' })}
+                  className={`p-4 rounded-xl border-2 transition-all text-left ${
+                    formData.pickupLocation === 'Av. Itzáes 665 con, Sambulá, 97250 Mérida, Yuc.'
+                      ? 'border-blue-600 bg-blue-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                      formData.pickupLocation === 'Av. Itzáes 665 con, Sambulá, 97250 Mérida, Yuc.' ? 'border-blue-600' : 'border-slate-300'
+                    }`}>
+                      {formData.pickupLocation === 'Av. Itzáes 665 con, Sambulá, 97250 Mérida, Yuc.' && (
+                        <div className="w-3 h-3 rounded-full bg-blue-600"></div>
+                      )}
+                    </div>
+                    <div className="flex-grow">
+                      <div className="flex items-center gap-2 mb-1">
+                        <i className="fas fa-map-marker-alt text-blue-600"></i>
+                        <span className="font-bold text-slate-800">Mérida</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">Av. Itzáes 665 con, Sambulá</p>
+                      <p className="text-xs text-slate-600">97250 Mérida, Yuc.</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Contact Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Nombre completo</label>
-              <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" />
+              <label className="text-sm font-bold text-slate-700">Nombre</label>
+              <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700">Apellido</label>
+              <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" required />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Email</label>
-              <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" />
+              <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700">Teléfono</label>
+              <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" placeholder="8112345678" required />
             </div>
           </div>
 
@@ -266,6 +342,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700">Ciudad</label>
                 <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Estado</label>
+                <input type="text" name="state" value={formData.state} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" placeholder="Nuevo León" />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700">Código Postal</label>
