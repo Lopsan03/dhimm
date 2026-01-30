@@ -107,7 +107,7 @@ const AboutUs: React.FC = () => {
             </div>
             <h2 className="text-2xl font-black text-slate-900 mb-4">Nuestra Misión</h2>
             <p className="text-slate-600 leading-relaxed">
-              Proporcionar refacciones automotrices de la más alta calidad, con un servicio excepcional y precios competitivos. Nos comprometemos a ser el socio confiable para todos tus necesidades automotrices, ofreciendo productos originales y genuinos que garanticen la seguridad y rendimiento de tu vehículo.
+              Proporcionar refacciones automotrices de la más alta calidad, con un servicio excepcional y precios competitivos. Nos comprometemos a ser el socio confiable para todas tus necesidades automotrices, ofreciendo productos originales y genuinos que garanticen la seguridad y rendimiento de tu vehículo.
             </p>
           </div>
 
