@@ -519,7 +519,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                 <div className="grid grid-cols-1 gap-6">
                   <CustomDropdown 
                     label="Categoría"
-                    options={['Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica']}
+                    options={['Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica', 'Transmisión', 'Motor', 'Diferencial', 'Marcha', 'Alternador']}
                     selected={editForm.category}
                     onSelect={(val: any) => setEditForm({...editForm, category: val})}
                     required
@@ -636,7 +636,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                 <div className="grid grid-cols-1 gap-6">
                   <CustomDropdown 
                     label="Categoría"
-                    options={['Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica']}
+                    options={['Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica', 'Transmisión', 'Motor', 'Diferencial', 'Marcha', 'Alternador']}
                     selected={createForm.category}
                     onSelect={(val: any) => setCreateForm({...createForm, category: val})}
                     required
