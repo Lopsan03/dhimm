@@ -6,6 +6,7 @@ import MobileBottomNav from './components/MobileBottomNav';
 import WhatsAppButton from './components/WhatsAppButton';
 import Home from './pages/Home';
 import Catalog from './pages/Catalog';
+import AboutUs from './pages/AboutUs';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -563,6 +564,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Home products={products} onAddToCart={addToCart} />} />
             <Route path="/catalog" element={<Catalog products={products} onAddToCart={addToCart} />} />
+            <Route path="/about" element={<AboutUs />} />
             <Route path="/product/:id" element={<ProductDetail products={products} onAddToCart={addToCart} />} />
             <Route path="/cart" element={<Cart cart={cart} updateQuantity={updateQuantity} remove={removeFromCart} />} />
             <Route path="/checkout" element={<Checkout cart={cart} user={user} onComplete={addOrder} clearCart={() => setCart([])} />} />

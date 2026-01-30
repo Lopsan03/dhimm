@@ -30,6 +30,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, cartCount }) => {
         <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-600">
           <Link to="/" className="hover:text-blue-600 transition-colors">Inicio</Link>
           <Link to="/catalog" className="hover:text-blue-600 transition-colors">Catálogo</Link>
+          <Link to="/about" className="hover:text-blue-600 transition-colors">¿Quiénes Somos?</Link>
           <a href={COMPANY_INFO.whatsapp} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors">Contacto</a>
         </nav>
 
