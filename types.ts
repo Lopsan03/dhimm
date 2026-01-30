@@ -12,7 +12,7 @@ export interface User {
 export interface Product {
   id: string;
   name: string;
-  category: 'Cremallera Hidráulica' | 'Cremallera Electrónica' | 'Bomba Hidráulica';
+  category: 'Cremallera Hidráulica' | 'Cremallera Electrónica' | 'Bomba Hidráulica' | 'Transmisión' | 'Motor' | 'Diferencial' | 'Marcha' | 'Alternador';
   brand: string;
   compatibleModels: string[];
   price: number;

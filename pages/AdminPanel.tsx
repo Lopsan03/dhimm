@@ -234,7 +234,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
           <div className="flex flex-wrap gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 items-end">
             <CustomDropdown 
               label="Filtrar por Categoría" 
-              options={['All', 'Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica']} 
+              options={['All', 'Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica', 'Transmisión', 'Motor', 'Diferencial', 'Marcha', 'Alternador']} 
               selected={filterCategory} 
               onSelect={setFilterCategory} 
               placeholder="Todas las Categorías"
