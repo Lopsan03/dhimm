@@ -6,10 +6,10 @@ const AboutUs: React.FC = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const teamImages = [
-    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/520467500_748009567607696_7820709447666444958_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=102&ccb=1-7&_nc_sid=833d8c&_nc_ohc=LYNcmoZJrGsQ7kNvwHcb9TT&_nc_oc=Adng59EiZyzU5ppitS50tgECnQSuVULG0JL4n1BAUoxHJqOWTnsE7hCF4bdpuB6PoyxxYXEUvdV62iXel_R2tLOH&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=AqgAP5F0wYfsq0k9E9XoZg&oh=00_AfqAZI56-iW4086j9PCZ-Aw7MlDHe3z-9VPN_2Z-bVUpeg&oe=6981D93F',
-    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/518939986_747738374301482_4982077671881894471_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=110&ccb=1-7&_nc_sid=833d8c&_nc_ohc=SqtR9wfafFAQ7kNvwEnQwMG&_nc_oc=Adk1YRfGrMPD3evxkQfekwmJ89WbRvHPil12xMJj4zYcHc0tJFESN6AbjBDDPCgQTzvYEhFLq0oNOdqpYKUr4TfP&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=TQTmenHjH-CfuB3eBYL_gg&oh=00_Afoy206nXAYIAzB9EbP7KUL7bIkKqrHwI-FcAUYHzX_bWg&oe=6981B5CC',
-    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/520426697_748009574274362_5705865756089134899_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=111&ccb=1-7&_nc_sid=833d8c&_nc_ohc=s0F6kNEVXL4Q7kNvwH3ToFK&_nc_oc=AdmTtxZ06j5hi0WPpCz_Hegv340gnWCDIxVBZE53bwrc3SGREfn9mulXvf-At0n-PaimmELASrVQVvZeQozS7PWv&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=DCWtz_K5D40eajc95Sqdwg&oh=00_AfqXx8_cnG0qV7Qb644lJwHLcUJt_zSpYq9FVCpx4bRT0g&oe=6981D0EF',
-    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/518798661_748009640941022_8906899273632653758_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=103&ccb=1-7&_nc_sid=833d8c&_nc_ohc=fNNWfynLlA4Q7kNvwHlQj7F&_nc_oc=Adle0H5nfcK4BjKIy_jMn-mLJJYwi24WjrXtcaYpArGaupMyLTS_8-lDJc9HCRXcmqKFBiYDPH6sv-TJtSReFHgQ&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=7dobMCQsufn1SqcnL_UuSA&oh=00_Afr20thNnZ-QiBZqmFZIWkfkd2BTdmWOCKmZKVkm4IQm0Q&oe=6981D40F',
+    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/520142371_747738357634817_6449569351903308783_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=102&ccb=1-7&_nc_sid=833d8c&_nc_ohc=U7vdGMGGtfkQ7kNvwFBIhLr&_nc_oc=Adl_H26epm7M5VSvm5cgpULeGhLxI8KHJLpv_-ojTdXSgldiiyQT-f0PHYj5DX2c913B47HTOkoKGgrJkY9TDqmH&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=lzFMwbeNRXNsoTmGfTxkMA&oh=00_Afrup5N7bW-DHRG-YyvSZZbUf17075D8zWGpCKIC1EioQA&oe=6981DC1A',
+    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/520435903_747738457634807_1406220995861554003_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=104&ccb=1-7&_nc_sid=833d8c&_nc_ohc=Llr7Vy6C0XMQ7kNvwGC5lLU&_nc_oc=Adnw14M7O_Q79me6HyanscEE6EACWtKV-oKnKDg_Zf6IM2rCFgyEwqYXk1gvxuwddvrudT-sRpkp56edTlYzeI8p&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=bJ1kafyV2yL2At_YVcfs5g&oh=00_Afq2dPWwt9tKnKYnf83cRgou-WosVvVywdrFrHydi2cZ9w&oe=6981C08D',
+    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/518381081_748009747607678_430735431791261680_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=101&ccb=1-7&_nc_sid=833d8c&_nc_ohc=n_FiuZu--w0Q7kNvwEE3AKC&_nc_oc=Adle7QdWP5TT5nRPMtIfrQJCNyEp542m7j_rfdpWkwObWsuid_7ATMrs9tmg-sll17bdNy1euW5pQhRcB4FAn-Iq&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=x4H5rUyDUmctuwyBgDXnlg&oh=00_AfonLaedzVfOgSY77csEGkkMwXQQ3RwtFQtT--sbMenNVw&oe=6981DD23',
+    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/519417068_748009827607670_9134690841492495146_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=108&ccb=1-7&_nc_sid=833d8c&_nc_ohc=himDXdytDZ4Q7kNvwEXnVTx&_nc_oc=AdmeY-xE5dQW34dIx46nJBRDPhZHAG0znJgkouj4XmAGYTgGbcNjnJcnz0312dIEQ_lH07MECfxKYoDwcYT5qj4L&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=3zaPCirIq2sadu_0BiDJeg&oh=00_Afo6Df0uwVP2S5UIVSvKkVdfxd7ovZ1s2AkERsGayDZ2mw&oe=6981D8F4',
     'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/518889920_747738387634814_8458555120026248066_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=100&ccb=1-7&_nc_sid=833d8c&_nc_ohc=y8Uun8AM_ngQ7kNvwGm8y4y&_nc_oc=AdmroQIuyXPokw9s04ChmG4vf90du8sIoTFOok46qPuzSp7_dPYVEMVTtxUudK3AgYgivSvTl7c-XwDhKfZ4svz8&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=-rueVL3bw4Gop8j0rR_6bg&oh=00_AfrhWzFkOp3utaW8M2bqa-TutK5m9Syib1lffVX-Ud3Olg&oe=6981E39B'
   ];
 
@@ -48,12 +48,12 @@ const AboutUs: React.FC = () => {
         {/* Team Carousel */}
         <div className="mb-20">
           <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden">
-            <div className="relative w-full h-[500px] bg-slate-900 group">
+            <div className="relative w-full bg-slate-900 group flex items-center justify-center" style={{ height: 'auto', aspectRatio: '4/3' }}>
               {/* Carousel Images */}
               <img
                 src={teamImages[currentImageIndex]}
                 alt="Equipo Dhimma"
-                className="w-full h-full object-cover transition-opacity duration-1000"
+                className="w-full h-full object-contain transition-opacity duration-1000"
               />
 
               {/* Gradient Overlay */}
