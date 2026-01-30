@@ -13,6 +13,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ user, onLogout, cartCount }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const navigate = useNavigate();
 
   return (
@@ -35,7 +36,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, cartCount }) => {
         </nav>
 
         {/* Action Icons */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 md:space-x-4">
           <Link to="/cart" className="relative p-2 text-slate-600 hover:text-blue-600 transition-colors">
             <i className="fas fa-shopping-cart text-xl"></i>
             {cartCount > 0 && (
@@ -96,8 +97,53 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, cartCount }) => {
               </div>
             )}
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="md:hidden p-2 text-slate-600 hover:text-blue-600 transition-colors"
+          >
+            <i className={`fas fa-${showMobileMenu ? 'times' : 'bars'} text-xl`}></i>
+          </button>
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      {showMobileMenu && (
+        <div className="md:hidden bg-white border-b border-slate-200 shadow-lg">
+          <div className="px-4 py-4 space-y-3">
+            <Link 
+              to="/" 
+              className="block py-2 text-sm font-medium text-slate-700 hover:text-blue-600"
+              onClick={() => setShowMobileMenu(false)}
+            >
+              Inicio
+            </Link>
+            <Link 
+              to="/catalog" 
+              className="block py-2 text-sm font-medium text-slate-700 hover:text-blue-600"
+              onClick={() => setShowMobileMenu(false)}
+            >
+              Catálogo
+            </Link>
+            <Link 
+              to="/about" 
+              className="block py-2 text-sm font-medium text-slate-700 hover:text-blue-600"
+              onClick={() => setShowMobileMenu(false)}
+            >
+              ¿Quiénes Somos?
+            </Link>
+            <a 
+              href={COMPANY_INFO.whatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block py-2 text-sm font-medium text-slate-700 hover:text-blue-600"
+            >
+              Contacto
+            </a>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

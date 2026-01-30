@@ -48,7 +48,7 @@ const AboutUs: React.FC = () => {
         {/* Team Carousel */}
         <div className="mb-20">
           <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden">
-            <div className="relative w-full bg-slate-900 group flex items-center justify-center" style={{ height: 'auto', aspectRatio: '4/3' }}>
+            <div className="relative w-full bg-slate-900 group flex items-center justify-center" style={{ height: 'auto', aspectRatio: '16/10', maxHeight: '400px' }}>
               {/* Carousel Images */}
               <img
                 src={teamImages[currentImageIndex]}
