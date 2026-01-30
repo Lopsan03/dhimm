@@ -15,6 +15,10 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, orders, onUpdateUse
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [addressForm, setAddressForm] = useState({
     label: '',
+    name: '',
+    lastName: '',
+    email: '',
+    phone: '',
     street: '',
     city: 'Monterrey',
     state: 'Nuevo León',
@@ -40,7 +44,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, orders, onUpdateUse
 
   const handleSaveAddress = (e: React.FormEvent) => {
     e.preventDefault();
-    const formatted = `${addressForm.label ? `[${addressForm.label}] ` : ''}${addressForm.street}, ${addressForm.city}, ${addressForm.state}, CP ${addressForm.zip}, ${addressForm.country}`;
+    const formatted = `${addressForm.label ? `[${addressForm.label}] ` : ''}${addressForm.name} ${addressForm.lastName} | ${addressForm.email} | ${addressForm.phone} | ${addressForm.street}, ${addressForm.city}, ${addressForm.state}, CP ${addressForm.zip}, ${addressForm.country}`;
     
     let updatedAddresses = [...user.addresses];
     if (editingIndex !== null) {
@@ -58,28 +62,35 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, orders, onUpdateUse
       setEditingIndex(idx);
       // Attempt to parse existing address
       const fullAddr = user.addresses[idx];
-      const hasLabel = fullAddr.startsWith('[');
       let label = '';
       let remaining = fullAddr;
       
-      if (hasLabel) {
+      if (fullAddr.startsWith('[')) {
         const endLabel = fullAddr.indexOf(']');
         label = fullAddr.substring(1, endLabel);
         remaining = fullAddr.substring(endLabel + 2);
       }
       
-      const parts = remaining.split(', ');
+      // Parse: "Name LastName | email | phone | street, city, state, zip, country"
+      const parts = remaining.split(' | ');
+      const names = parts[0]?.split(' ') || ['', ''];
+      const addressParts = parts[3]?.split(', ') || ['', '', '', ''];
+      
       setAddressForm({
         label: label,
-        street: parts[0] || '',
-        city: parts[1] || 'Monterrey',
-        state: parts[2] || 'Nuevo León',
-        zip: parts[3]?.replace('CP ', '') || '',
-        country: parts[4] || 'México'
+        name: names[0] || '',
+        lastName: names.slice(1).join(' ') || '',
+        email: parts[1] || '',
+        phone: parts[2] || '',
+        street: addressParts[0] || '',
+        city: addressParts[1] || 'Monterrey',
+        state: addressParts[2] || 'Nuevo León',
+        zip: addressParts[3]?.replace('CP ', '').trim() || '',
+        country: addressParts[4] || 'México'
       });
     } else {
       setEditingIndex(null);
-      setAddressForm({ label: '', street: '', city: 'Monterrey', state: 'Nuevo León', zip: '', country: 'México' });
+      setAddressForm({ label: '', name: '', lastName: '', email: '', phone: '', street: '', city: 'Monterrey', state: 'Nuevo León', zip: '', country: 'México' });
     }
     setShowModal(true);
   };
@@ -183,7 +194,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, orders, onUpdateUse
               <h2 className="text-2xl font-black text-slate-900 tracking-tighter">{editingIndex !== null ? 'Editar Dirección' : 'Nueva Dirección'}</h2>
               <button onClick={closeModal} className="w-12 h-12 rounded-full hover:bg-white flex items-center justify-center text-slate-400 transition-all shadow-sm"><i className="fas fa-times"></i></button>
             </div>
-            <form onSubmit={handleSaveAddress} className="p-10 space-y-8">
+            <form onSubmit={handleSaveAddress} className="p-10 space-y-8 overflow-y-scroll max-h-[calc(100vh-200px)]" id="address-form">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta (opcional)</label>
                 <input 
@@ -192,55 +203,102 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, orders, onUpdateUse
                   value={addressForm.label} onChange={e => setAddressForm({...addressForm, label: e.target.value})}
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calle y Número *</label>
-                <input 
-                  type="text" required placeholder="Calle, número, colonia" 
-                  className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
-                  value={addressForm.street} onChange={e => setAddressForm({...addressForm, street: e.target.value})}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ciudad *</label>
-                  <input 
-                    type="text" required 
-                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
-                    value={addressForm.city} onChange={e => setAddressForm({...addressForm, city: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado *</label>
-                  <input 
-                    type="text" required 
-                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
-                    value={addressForm.state} onChange={e => setAddressForm({...addressForm, state: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Código Postal *</label>
-                  <input 
-                    type="text" required 
-                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
-                    value={addressForm.zip} onChange={e => setAddressForm({...addressForm, zip: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">País</label>
-                  <input 
-                    type="text" required 
-                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800"
-                    value={addressForm.country} onChange={e => setAddressForm({...addressForm, country: e.target.value})}
-                  />
+
+              {/* Contact Information */}
+              <div className="bg-blue-50 rounded-2xl p-6 border-2 border-blue-100">
+                <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4">Datos de Contacto</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre *</label>
+                    <input 
+                      type="text" required placeholder="Juan" 
+                      className="w-full p-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 text-sm"
+                      value={addressForm.name} onChange={e => setAddressForm({...addressForm, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Apellido *</label>
+                    <input 
+                      type="text" required placeholder="Pérez" 
+                      className="w-full p-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 text-sm"
+                      value={addressForm.lastName} onChange={e => setAddressForm({...addressForm, lastName: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email *</label>
+                    <input 
+                      type="email" required placeholder="juan@example.com" 
+                      className="w-full p-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 text-sm"
+                      value={addressForm.email} onChange={e => setAddressForm({...addressForm, email: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono *</label>
+                    <input 
+                      type="tel" required placeholder="8112345678" 
+                      className="w-full p-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 text-sm"
+                      value={addressForm.phone} onChange={e => setAddressForm({...addressForm, phone: e.target.value})}
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-4 pt-6">
-                <button type="button" onClick={closeModal} className="flex-grow py-5 bg-slate-50 text-slate-500 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-100 transition-all">Cancelar</button>
-                <button type="submit" className="flex-grow py-5 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all transform hover:-translate-y-1">{editingIndex !== null ? 'Actualizar Dirección' : 'Agregar Dirección'}</button>
+
+              {/* Address Information */}
+              <div className="bg-slate-50 rounded-2xl p-6 border-2 border-slate-100">
+                <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4">Dirección</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calle y Número *</label>
+                    <input 
+                      type="text" required placeholder="Calle, número, colonia" 
+                      className="w-full p-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 text-sm"
+                      value={addressForm.street} onChange={e => setAddressForm({...addressForm, street: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ciudad *</label>
+                      <input 
+                        type="text" required 
+                        className="w-full p-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 text-sm"
+                        value={addressForm.city} onChange={e => setAddressForm({...addressForm, city: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado *</label>
+                      <input 
+                        type="text" required 
+                        className="w-full p-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 text-sm"
+                        value={addressForm.state} onChange={e => setAddressForm({...addressForm, state: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Código Postal *</label>
+                      <input 
+                        type="text" required 
+                        className="w-full p-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 text-sm"
+                        value={addressForm.zip} onChange={e => setAddressForm({...addressForm, zip: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">País</label>
+                      <input 
+                        type="text" required 
+                        className="w-full p-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-bold text-slate-800 text-sm"
+                        value={addressForm.country} onChange={e => setAddressForm({...addressForm, country: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </form>
+
+            <div className="border-t border-slate-50 px-10 py-6 flex gap-4 bg-slate-50/30">
+              <button type="button" onClick={closeModal} className="flex-grow py-5 bg-slate-50 text-slate-500 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-100 transition-all">Cancelar</button>
+              <button type="submit" form="address-form" className="flex-grow py-5 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all transform hover:-translate-y-1">{editingIndex !== null ? 'Actualizar Dirección' : 'Agregar Dirección'}</button>
+            </div>
           </div>
         </div>
       )}

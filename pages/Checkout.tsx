@@ -15,6 +15,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [errorFields, setErrorFields] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     lastName: '',
@@ -32,6 +34,37 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
   const shipping = formData.deliveryMethod === 'pickup' ? 0 : (subtotal > 5000 ? 0 : 250);
   const total = subtotal + shipping;
 
+  // Helper function to parse saved address
+  const parseSavedAddress = (fullAddr: string) => {
+    let remaining = fullAddr;
+    let label = '';
+    
+    // Check if address has a label
+    if (remaining.startsWith('[')) {
+      const endLabel = remaining.indexOf(']');
+      label = remaining.substring(1, endLabel);
+      remaining = remaining.substring(endLabel + 2);
+    }
+    
+    // Parse: "Name LastName | email | phone | street, city, state, zip, country"
+    const parts = remaining.split(' | ');
+    const names = parts[0]?.split(' ') || ['', ''];
+    const addressParts = parts[3]?.split(', ') || ['', '', '', ''];
+    
+    return {
+      label,
+      name: names[0] || '',
+      lastName: names.slice(1).join(' ') || '',
+      email: parts[1] || '',
+      phone: parts[2] || '',
+      street: addressParts[0] || '',
+      city: addressParts[1] || 'Monterrey',
+      state: addressParts[2] || 'Nuevo León',
+      zip: addressParts[3]?.replace('CP ', '').trim() || '',
+      country: addressParts[4] || 'México'
+    };
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -44,13 +77,34 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
     return `ord-${Date.now()}-${rand}`;
   };
 
-  const handlePayWithMercadoPago = async () => {
-    if (!formData.name || !formData.lastName || !formData.email || !formData.phone) {
-      alert('Por favor completa todos los campos requeridos');
-      return;
+  const validateStep1 = (): boolean => {
+    const errors: string[] = [];
+    
+    if (!formData.name.trim()) errors.push('nombre');
+    if (!formData.lastName.trim()) errors.push('apellido');
+    if (!formData.email.trim()) errors.push('email');
+    if (!formData.phone.trim()) errors.push('teléfono');
+    
+    if (formData.deliveryMethod === 'shipping') {
+      if (!formData.address.trim()) errors.push('dirección');
+      if (!formData.city.trim()) errors.push('ciudad');
+      if (!formData.state.trim()) errors.push('estado');
+      if (!formData.zip.trim()) errors.push('código postal');
     }
-    if (formData.deliveryMethod === 'shipping' && (!formData.address || !formData.city || !formData.state || !formData.zip)) {
-      alert('Por favor completa todos los campos de envío');
+    
+    if (errors.length > 0) {
+      setErrorFields(errors);
+      setErrorMessage(`Por favor completa los siguientes campos: ${errors.join(', ')}`);
+      return false;
+    }
+    
+    setErrorFields([]);
+    setErrorMessage('');
+    return true;
+  };
+
+  const handlePayWithMercadoPago = async () => {
+    if (!validateStep1()) {
       return;
     }
 
@@ -133,6 +187,42 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
+      {/* Error Modal */}
+      {errorMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl animate-fadeIn overflow-hidden">
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-5 flex items-center gap-3">
+              <i className="fas fa-exclamation-circle text-white text-2xl"></i>
+              <h3 className="text-white font-bold text-lg">Campos Requeridos</h3>
+            </div>
+            <div className="p-6">
+              <p className="text-slate-700 mb-4 text-sm leading-relaxed">
+                Por favor completa los siguientes campos:
+              </p>
+              <div className="bg-red-50 rounded-2xl p-4 mb-6">
+                <ul className="space-y-2">
+                  {errorFields.map((field, idx) => (
+                    <li key={idx} className="flex items-center gap-3 text-slate-700 text-sm capitalize">
+                      <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                      <span>{field}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <button
+                onClick={() => {
+                  setErrorMessage('');
+                  setErrorFields([]);
+                }}
+                className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-all"
+              >
+                Entendido, llenar campos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Progress Bar */}
       <div className="flex items-center justify-between mb-12 relative">
         <div className="absolute top-1/2 left-0 right-0 h-1 bg-slate-100 -translate-y-1/2 z-0"></div>
@@ -303,29 +393,52 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
                 <div className="md:col-span-2 space-y-2 mb-4">
                   <label className="text-sm font-bold text-slate-700">Mis direcciones guardadas</label>
                   <div className="grid grid-cols-1 gap-2">
-                    {user.addresses.map((savedAddress, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, address: savedAddress })}
-                        className={`p-3 rounded-xl border-2 transition-all text-left ${
-                          formData.address === savedAddress
-                            ? 'border-blue-600 bg-blue-50'
-                            : 'border-slate-200 bg-white hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                            formData.address === savedAddress ? 'border-blue-600' : 'border-slate-300'
-                          }`}>
-                            {formData.address === savedAddress && (
-                              <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                            )}
+                    {user.addresses.map((savedAddress, index) => {
+                      const parsedAddr = parseSavedAddress(savedAddress);
+                      const displayAddr = `${parsedAddr.name} ${parsedAddr.lastName} | ${parsedAddr.street}, ${parsedAddr.city}`;
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              name: parsedAddr.name,
+                              lastName: parsedAddr.lastName,
+                              email: parsedAddr.email,
+                              phone: parsedAddr.phone,
+                              address: parsedAddr.street,
+                              city: parsedAddr.city,
+                              state: parsedAddr.state,
+                              zip: parsedAddr.zip
+                            });
+                          }}
+                          className={`p-4 rounded-xl border-2 transition-all text-left ${
+                            formData.name === parsedAddr.name && formData.email === parsedAddr.email
+                              ? 'border-blue-600 bg-blue-50'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center mt-1 ${
+                              formData.name === parsedAddr.name && formData.email === parsedAddr.email ? 'border-blue-600' : 'border-slate-300'
+                            }`}>
+                              {formData.name === parsedAddr.name && formData.email === parsedAddr.email && (
+                                <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                              )}
+                            </div>
+                            <div className="flex-grow">
+                              {parsedAddr.label && (
+                                <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">{parsedAddr.label}</p>
+                              )}
+                              <p className="text-sm font-bold text-slate-800 mb-1">{parsedAddr.name} {parsedAddr.lastName}</p>
+                              <p className="text-xs text-slate-600">{parsedAddr.street}, {parsedAddr.city}</p>
+                              <p className="text-xs text-slate-600">{parsedAddr.email} • {parsedAddr.phone}</p>
+                            </div>
                           </div>
-                          <span className="text-sm font-medium text-slate-700">{savedAddress}</span>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                   <div className="flex items-center gap-2 mt-4">
                     <div className="flex-grow h-px bg-slate-200"></div>
@@ -354,7 +467,16 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
             </div>
           )}
           
-          <button onClick={() => setStep(2)} className="w-full mt-8 bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/20">Siguiente: Pago</button>
+          <button 
+            onClick={() => {
+              if (validateStep1()) {
+                setStep(2);
+              }
+            }} 
+            className="w-full mt-8 bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all"
+          >
+            Siguiente: Pago
+          </button>
         </div>
       )}
 

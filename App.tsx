@@ -150,7 +150,7 @@ const App: React.FC = () => {
           try {
             const { data: profile, error: profileError } = await supabase
               .from('profiles')
-              .select('role')
+              .select('role, addresses')
               .eq('id', session.user.id)
               .single();
             
@@ -167,6 +167,11 @@ const App: React.FC = () => {
             } else {
               console.log('[auth] User is not admin (initial), fetching user orders only');
               await fetchOrders(session.user.id);
+            }
+
+            // Update user state with addresses from database
+            if (profile?.addresses && Array.isArray(profile.addresses)) {
+              setUser(prevUser => prevUser ? { ...prevUser, addresses: profile.addresses } : null);
             }
           } catch (err) {
             console.error('[auth] profile fetch exception (initial):', err);
@@ -350,9 +355,36 @@ const App: React.FC = () => {
     localStorage.removeItem('dhimma_user');
   };
 
-  const handleUpdateUser = (updated: User) => {
+  const handleUpdateUser = async (updated: User) => {
+    console.log('🔄 handleUpdateUser called with addresses:', updated.addresses?.length || 0, 'addresses');
     setUser(updated);
     localStorage.setItem('dhimma_user', JSON.stringify(updated));
+
+    // Save addresses to database if user is logged in
+    if (updated.id && updated.addresses) {
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        console.log('📤 Sending addresses to backend:', backendUrl, 'User ID:', updated.id);
+        const response = await fetch(`${backendUrl}/api/user-addresses/${updated.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ addresses: updated.addresses })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Addresses saved to database:', result);
+        } else {
+          const errorText = await response.text();
+          console.error('⚠️ Failed to save addresses to database:', response.statusText, errorText);
+        }
+      } catch (err) {
+        console.error('❌ Could not save addresses to database:', err);
+        // Still update locally even if database save fails
+      }
+    } else {
+      console.log('⚠️ Not saving addresses - User ID:', updated.id, 'Has addresses:', !!updated.addresses);
+    }
   };
 
   const addToCart = (product: Product) => {

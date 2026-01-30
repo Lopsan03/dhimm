@@ -63,42 +63,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }
 
       const authUser = data.user;
-      console.log('[login] 5b. authUser retrieved:', authUser.id);
-      
-      console.log('[login] 6. fetching profile for user', authUser.id);
       let profileData: any = null;
 
-      const profileFetch = supabase
-        .from('profiles')
-        .select('id, name, email, role, addresses')
-        .eq('id', authUser.id)
-        .single();
-
-      const profileTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          console.warn('[login] profile fetch timeout (4s), will use auth metadata');
-          reject(new Error('profile-timeout'));
-        }, 4000);
-      });
-
+      // Fetch profile through backend API (bypasses RLS issues)
       try {
-        const { data: pData, error: pError } = await Promise.race([profileFetch, profileTimeout]);
-        console.log('[login] 7. profile query completed:', { hasError: !!pError, hasData: !!pData });
-        if (pData) {
-          profileData = pData;
-          console.log('[login] 8. profile found:', profileData.id);
-        } else if (pError) {
-          console.warn('[login] 8. profile query error (not fatal):', pError.code, pError.message);
+        const profileResponse = await fetch(`http://localhost:3001/api/user-profile/${authUser.id}`);
+        if (profileResponse.ok) {
+          profileData = await profileResponse.json();
         }
       } catch (err: any) {
-        if (err?.message === 'profile-timeout') {
-          console.warn('[login] 8b. profile fetch timed out, using auth metadata');
-        } else {
-          console.warn('[login] 8c. profile exception:', err?.message);
-        }
+        console.error('Error fetching user profile:', err?.message);
       }
 
-      console.log('[login] 9. building user object');
       const user: User = {
         id: authUser.id,
         name: profileData?.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuario',
@@ -107,18 +83,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         addresses: profileData?.addresses || []
       };
 
-      console.log('[login] 10. user object complete:', { id: user.id, role: user.role });
       localStorage.setItem('dhimma_user', JSON.stringify(user));
-      console.log('[login] 11. localStorage set');
-      
-      console.log('[login] 12. calling onLogin');
       onLogin(user);
-      
-      console.log('[login] 13. preparing redirect to', user.role === 'admin' ? '/admin' : '/dashboard');
       setLoading(false);
-      
       navigate(user.role === 'admin' ? '/admin' : '/dashboard');
-      console.log('[login] 14. navigation initiated');
     } catch (err: any) {
       console.error('[login] ERROR:', err.message);
       setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');

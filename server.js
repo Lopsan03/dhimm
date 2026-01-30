@@ -927,6 +927,69 @@ app.post('/api/mp/webhook', async (req, res) => {
   }
 });
 
+// Get user profile (bypasses RLS using admin client)
+app.get('/api/user-profile/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId' });
+    }
+
+    // Use service role if available, otherwise use regular client
+    const client = supabaseAdmin || supabase;
+    const { data, error } = await client
+      .from('profiles')
+      .select('id, name, email, role, addresses')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error('Exception fetching user profile:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update user addresses
+app.put('/api/user-addresses/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { addresses } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId' });
+    }
+
+    if (!Array.isArray(addresses)) {
+      return res.status(400).json({ error: 'addresses must be an array' });
+    }
+
+    // Use service role if available, otherwise use regular client
+    const client = supabaseAdmin || supabase;
+    const { data, error } = await client
+      .from('profiles')
+      .update({ addresses })
+      .eq('id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error updating user addresses:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ success: true, addresses });
+  } catch (err) {
+    console.error('Exception updating user addresses:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`\n✅ Backend server running on port ${PORT}`);
   console.log(`📍 Webhook URL: http://localhost:${PORT}/api/mp/webhook`);
