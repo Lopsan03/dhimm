@@ -214,7 +214,16 @@ const validateWebhookSignature = (req) => {
 app.use(express.json({ verify: (req, res, buf) => {
   req.rawBody = buf.toString();
 }}));
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://dhimmaautomotriz.com',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000'
+  ],
+  credentials: true
+}));
 
 // Ensure a guest user/profile exists; capture its UUID for FK
 async function ensureGuestIdentity() {
