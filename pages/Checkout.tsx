@@ -229,15 +229,9 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
     }
 
     setLoading(true);
-            {/* Mercado Pago Bricks Card Form */}
-            <div className="my-6">
-              <div ref={cardFormRef} id="card-form-container"></div>
-              {bricksError && <div className="text-red-600 text-sm mt-2">{bricksError}</div>}
-            </div>
     try {
       // Generate order ID (will be created by webhook after payment is approved)
       const orderId = generateOrderId();
-      
       const orderData = {
         id: orderId,
         userId: user?.id || 'guest',
@@ -251,34 +245,14 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
           ? `Recoger en tienda: ${formData.pickupLocation}`
           : `${formData.address}, ${formData.city}, ${formData.state}, CP ${formData.zip}`
       };
-      
-          <div className="mt-8 flex gap-4">
-            <button 
-              onClick={() => setStep(1)} 
-              className="flex-grow bg-slate-100 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
-              disabled={loading}
-            >
-              Atrás
-            </button>
-            {/* Optionally keep the old redirect flow for fallback: */}
-            <button 
-              onClick={handlePayWithMercadoPago} 
-              className="flex-grow bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <i className="fas fa-spinner fa-spin"></i>
-                  Procesando...
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-lock"></i>
-                  Pago con Checkout (popup)
-                </>
-              )}
-            </button>
-          </div>
+
+      // Create Mercado Pago preference with notification_url
+      const preference = await createPreference(
+        cart,
+        { name: formData.name, email: formData.email },
+        { 
+          address: formData.deliveryMethod === 'pickup' ? 'AV DE LA JUVENTUD #590' : formData.address, 
+          city: formData.deliveryMethod === 'pickup' ? 'San Nicolás de los Garza' : formData.city, 
           zip: formData.deliveryMethod === 'pickup' ? '66455' : formData.zip, 
           cost: shipping 
         },
@@ -291,7 +265,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
         console.log('Popup closed, navigating to waiting page...');
         navigate(`/checkout/waiting/${orderId}`);
       });
-      
       setLoading(false);
     } catch (error) {
       console.error('Error processing payment:', error);
