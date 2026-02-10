@@ -66,8 +66,7 @@ export const createPreference = async (
         excluded_payment_types: [
           { id: 'ticket' },
           { id: 'atm' },
-          { id: 'bank_transfer' },
-          { id: 'account_money' }
+          { id: 'bank_transfer' }
         ],
         excluded_payment_methods: []
       },
