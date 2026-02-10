@@ -309,6 +309,45 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Diagnostic: list available payment methods for the configured MP account
+app.get('/api/mp/payment-methods', async (_req, res) => {
+  try {
+    if (!MP_ACCESS_TOKEN) {
+      return res.status(500).json({ error: 'MP_ACCESS_TOKEN not configured' });
+    }
+
+    const resp = await fetch('https://api.mercadopago.com/v1/payment_methods', {
+      headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` }
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      return res.status(resp.status).json({
+        error: 'Mercado Pago API error',
+        status: resp.status,
+        body: text
+      });
+    }
+
+    const data = await resp.json();
+
+    // Return a minimal, readable view
+    const methods = (data || []).map(method => ({
+      id: method.id,
+      name: method.name,
+      payment_type_id: method.payment_type_id,
+      status: method.status
+    }));
+
+    res.json({
+      count: methods.length,
+      methods
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch payment methods', detail: err.message });
+  }
+});
+
 // Store order data from checkout (called before payment)
 app.post('/api/pending-orders/:orderId', express.json(), (req, res) => {
   const { orderId } = req.params;
