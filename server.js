@@ -1,73 +1,3 @@
-// ...existing code...
-// ============================================
-// MERCADO PAGO BRICKS: DIRECT CARD PAYMENT ENDPOINT
-// ============================================
-app.post('/api/process_payment', async (req, res) => {
-  try {
-    const {
-      token,
-      payment_method_id,
-      issuer_id,
-      amount,
-      installments,
-      payer,
-      order
-    } = req.body;
-
-    if (!token || !payment_method_id || !amount || !payer || !payer.email) {
-      return res.status(400).json({ status: 'error', message: 'Datos de pago incompletos.' });
-    }
-
-    // Ensure identification is always an object with type and number
-    let identification = payer.identification;
-    if (identification && typeof identification === 'object') {
-      identification = {
-        type: identification.type || 'DNI',
-        number: identification.number || ''
-      };
-    } else {
-      identification = { type: 'DNI', number: '' };
-    }
-    // Build payment payload for Mercado Pago API
-    const paymentPayload = {
-      token,
-      payment_method_id,
-      issuer_id,
-      transaction_amount: amount,
-      installments: installments || 1,
-      payer: {
-        email: payer.email,
-        identification,
-        first_name: payer.name,
-        last_name: payer.surname,
-      },
-      description: 'Compra en Dhimma Automotriz',
-      external_reference: order?.id || undefined,
-      metadata: order || {},
-    };
-
-    // Call Mercado Pago /v1/payments API
-    const mpResp = await fetch('https://api.mercadopago.com/v1/payments', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${MP_ACCESS_TOKEN}`
-      },
-      body: JSON.stringify(paymentPayload)
-    });
-    const mpData = await mpResp.json();
-
-    if (mpResp.ok && mpData.status === 'approved') {
-      // Optionally: store order in DB here
-      return res.json({ status: 'approved', payment: mpData, order });
-    } else {
-      return res.status(400).json({ status: 'error', message: mpData.message || 'Pago rechazado.', mpData });
-    }
-  } catch (err) {
-    console.error('Error in /api/process_payment:', err);
-    return res.status(500).json({ status: 'error', message: 'Error procesando el pago.' });
-  }
-});
 import 'dotenv/config';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -214,16 +144,7 @@ const validateWebhookSignature = (req) => {
 app.use(express.json({ verify: (req, res, buf) => {
   req.rawBody = buf.toString();
 }}));
-app.use(cors({
-  origin: [
-    'https://dhimmaautomotriz.com',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:3000'
-  ],
-  credentials: true
-}));
+app.use(cors());
 
 // Ensure a guest user/profile exists; capture its UUID for FK
 async function ensureGuestIdentity() {

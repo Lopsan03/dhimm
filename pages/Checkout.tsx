@@ -1,11 +1,8 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CartItem, User, Order } from '../types';
 import { createPreference, openCheckout } from '../services/mercadoPagoService';
-
-// Mercado Pago Bricks public key
-const MP_PUBLIC_KEY = (import.meta as any).env?.VITE_MP_PUBLIC_KEY;
 
 interface CheckoutProps {
   cart: CartItem[];
@@ -32,123 +29,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
     deliveryMethod: 'shipping' as 'shipping' | 'pickup',
     pickupLocation: 'AV DE LA JUVENTUD #590, San Nicolás de los Garza, NL',
   });
-
-  // Bricks/CardFormBrick integration
-  const cardFormRef = useRef<HTMLDivElement>(null);
-  const [bricksLoaded, setBricksLoaded] = useState(false);
-  const [bricksError, setBricksError] = useState('');
-  const [cardFormInstance, setCardFormInstance] = useState<any>(null);
-  // Load Mercado Pago Bricks SDK and render CardFormBrick
-  useEffect(() => {
-    if (step !== 2) return;
-    if (!MP_PUBLIC_KEY) return;
-    if (bricksLoaded) return;
-
-    // Load Bricks SDK script if not present
-    const scriptId = 'mp-bricks-script';
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://sdk.mercadopago.com/js/v2';
-      script.async = true;
-      script.onload = () => setBricksLoaded(true);
-      script.onerror = () => setBricksError('No se pudo cargar Mercado Pago Bricks.');
-      document.body.appendChild(script);
-    } else {
-      setBricksLoaded(true);
-    }
-  }, [step, bricksLoaded]);
-
-  // Initialize CardFormBrick when SDK is loaded
-  useEffect(() => {
-    if (!bricksLoaded || !cardFormRef.current || cardFormInstance) return;
-    if (!(window as any).MercadoPago) return;
-    try {
-      const mp = new (window as any).MercadoPago(MP_PUBLIC_KEY, { locale: 'es-MX' });
-      mp.bricks()
-        .create('cardForm', 'card-form-container', {
-          initialization: {
-            amount: total,
-          },
-          callbacks: {
-            onReady: () => {},
-            onError: (error: any) => setBricksError('Error en el formulario de tarjeta.'),
-            onSubmit: async (cardFormData: any) => {
-              setLoading(true);
-              setBricksError('');
-              try {
-                // Ensure identification is always an object with type and number
-                let identification = cardFormData.identification;
-                if (identification && typeof identification === 'object') {
-                  identification = {
-                    type: identification.type || 'DNI',
-                    number: identification.number || ''
-                  };
-                } else {
-                  identification = { type: 'DNI', number: '' };
-                }
-                // Send token and payment data to backend
-                const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-                const orderId = generateOrderId();
-                const paymentPayload = {
-                  token: cardFormData.token,
-                  payment_method_id: cardFormData.paymentMethodId,
-                  issuer_id: cardFormData.issuerId,
-                  amount: total,
-                  installments: cardFormData.installments,
-                  payer: {
-                    email: formData.email,
-                    identification,
-                    name: formData.name,
-                    surname: formData.lastName,
-                  },
-                  order: {
-                    id: orderId,
-                    userId: user?.id || 'guest',
-                    userName: `${formData.name} ${formData.lastName}`,
-                    userEmail: formData.email,
-                    userPhone: formData.phone,
-                    items: cart,
-                    total: total,
-                    deliveryMethod: formData.deliveryMethod,
-                    shippingAddress: formData.deliveryMethod === 'pickup' 
-                      ? `Recoger en tienda: ${formData.pickupLocation}`
-                      : `${formData.address}, ${formData.city}, ${formData.state}, CP ${formData.zip}`
-                  }
-                };
-                const resp = await fetch(`${backendUrl}/api/process_payment`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(paymentPayload)
-                });
-                const result = await resp.json();
-                if (resp.ok && result.status === 'approved') {
-                  setStep(3);
-                  clearCart();
-                  onComplete(result.order);
-                } else {
-                  setBricksError(result.message || 'Pago rechazado.');
-                }
-              } catch (err: any) {
-                setBricksError('Error procesando el pago.');
-              }
-              setLoading(false);
-            },
-          },
-          form: {
-            id: 'card-form',
-          },
-        })
-        .then((instance: any) => setCardFormInstance(instance));
-    } catch (err) {
-      setBricksError('No se pudo inicializar el formulario de tarjeta.');
-    }
-    // Cleanup on unmount
-    return () => {
-      if (cardFormInstance && cardFormInstance.unmount) cardFormInstance.unmount();
-    };
-    // eslint-disable-next-line
-  }, [bricksLoaded, cardFormRef.current]);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shipping = formData.deliveryMethod === 'pickup' ? 0 : (subtotal > 5000 ? 0 : 250);
@@ -232,6 +112,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
     try {
       // Generate order ID (will be created by webhook after payment is approved)
       const orderId = generateOrderId();
+      
       const orderData = {
         id: orderId,
         userId: user?.id || 'guest',
@@ -245,6 +126,25 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
           ? `Recoger en tienda: ${formData.pickupLocation}`
           : `${formData.address}, ${formData.city}, ${formData.state}, CP ${formData.zip}`
       };
+      
+      // Store order details in session for waiting page
+      sessionStorage.setItem('pendingOrderId', orderId);
+      sessionStorage.setItem('orderData', JSON.stringify(orderData));
+
+      // Send order data to backend for webhook to use
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        // Only send pending order data to backend; don't create order yet
+        // Order will be created when webhook receives payment approval
+        await fetch(`${backendUrl}/api/pending-orders/${orderId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData)
+        }).catch(err => console.warn('Failed to store pending order data:', err));
+      } catch (err) {
+        console.warn('⚠️ Could not store order on backend:', err);
+        // Continue anyway; webhook will use defaults
+      }
 
       // Create Mercado Pago preference with notification_url
       const preference = await createPreference(
@@ -265,6 +165,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
         console.log('Popup closed, navigating to waiting page...');
         navigate(`/checkout/waiting/${orderId}`);
       });
+      
       setLoading(false);
     } catch (error) {
       console.error('Error processing payment:', error);
