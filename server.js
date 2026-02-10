@@ -83,7 +83,7 @@ const validateWebhookSignature = (req) => {
 
   const signature = req.headers['x-signature'];
   const requestId = req.headers['x-request-id'];
-  const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+  const rawBody = req.rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
 
   if (!signature || !requestId) {
     logger.error('Missing webhook signature headers', { signature: !!signature, requestId: !!requestId });
