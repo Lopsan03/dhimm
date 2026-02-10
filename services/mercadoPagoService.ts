@@ -44,7 +44,21 @@ export const createPreference = async (
     const preference = {
       items: preferenceItems,
       payer: {
-        email: payer.email
+        name: payer.name || 'Cliente',
+        email: payer.email,
+        phone: {
+          area_code: '52',
+          number: '0000000000'
+        },
+        identification: {
+          type: 'DNI',
+          number: '00000000'
+        },
+        address: {
+          street_name: 'Calle',
+          street_number: 0,
+          zip_code: '00000'
+        }
       },
       shipments: {
         receiver_address: {
@@ -61,19 +75,6 @@ export const createPreference = async (
         success: `${window.location.origin}/#/checkout/waiting/${orderId}`,
         failure: `${window.location.origin}/#/checkout`,
         pending: `${window.location.origin}/#/checkout/waiting/${orderId}`
-      },
-      payment_methods: {
-        excluded_payment_methods: [
-          { id: 'oxxo' },
-          { id: 'paycash' },
-          { id: 'bancomer' },
-          { id: 'clabe' }
-        ],
-        excluded_payment_types: [
-          { id: 'ticket' },
-          { id: 'atm' },
-          { id: 'bank_transfer' }
-        ]
       },
       ...(webhookUrl || DEFAULT_WEBHOOK_URL ? { notification_url: webhookUrl || DEFAULT_WEBHOOK_URL } : {})
     };
@@ -97,7 +98,6 @@ export const createPreference = async (
 
     const data = await response.json();
     console.log('Preference created:', data);
-    console.log('Preference ID:', data?.id);
     sessionStorage.setItem('lastPreferenceId', data.id);
     return data;
   } catch (error) {
