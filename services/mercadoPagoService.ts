@@ -62,6 +62,15 @@ export const createPreference = async (
         failure: `${window.location.origin}/#/checkout`,
         pending: `${window.location.origin}/#/checkout/waiting/${orderId}`
       },
+      payment_methods: {
+        excluded_payment_types: [
+          { id: 'ticket' },
+          { id: 'atm' },
+          { id: 'bank_transfer' },
+          { id: 'account_money' }
+        ],
+        excluded_payment_methods: []
+      },
       ...(webhookUrl || DEFAULT_WEBHOOK_URL ? { notification_url: webhookUrl || DEFAULT_WEBHOOK_URL } : {})
     };
 
