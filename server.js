@@ -348,6 +348,38 @@ app.get('/api/mp/payment-methods', async (_req, res) => {
   }
 });
 
+// Diagnostic: inspect a preference by id to verify payment_methods and settings
+app.get('/api/mp/preferences/:preferenceId', async (req, res) => {
+  try {
+    const { preferenceId } = req.params;
+    if (!MP_ACCESS_TOKEN) {
+      return res.status(500).json({ error: 'MP_ACCESS_TOKEN not configured' });
+    }
+
+    if (!preferenceId) {
+      return res.status(400).json({ error: 'Missing preferenceId' });
+    }
+
+    const resp = await fetch(`https://api.mercadopago.com/checkout/preferences/${preferenceId}`, {
+      headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` }
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      return res.status(resp.status).json({
+        error: 'Mercado Pago API error',
+        status: resp.status,
+        body: text
+      });
+    }
+
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch preference', detail: err.message });
+  }
+});
+
 // Store order data from checkout (called before payment)
 app.post('/api/pending-orders/:orderId', express.json(), (req, res) => {
   const { orderId } = req.params;
