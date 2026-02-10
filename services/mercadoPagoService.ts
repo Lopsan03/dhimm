@@ -44,21 +44,7 @@ export const createPreference = async (
     const preference = {
       items: preferenceItems,
       payer: {
-        name: payer.name || 'Cliente',
-        email: payer.email,
-        phone: {
-          area_code: '52',
-          number: '0000000000'
-        },
-        identification: {
-          type: 'DNI',
-          number: '00000000'
-        },
-        address: {
-          street_name: 'Calle',
-          street_number: 0,
-          zip_code: '00000'
-        }
+        email: payer.email
       },
       shipments: {
         receiver_address: {
