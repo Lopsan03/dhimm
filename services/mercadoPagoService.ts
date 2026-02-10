@@ -64,7 +64,11 @@ export const createPreference = async (
       },
       payment_methods: {
         excluded_payment_methods: [],
-        excluded_payment_types: []
+        excluded_payment_types: [
+          { id: 'ticket' },
+          { id: 'atm' },
+          { id: 'bank_transfer' }
+        ]
       },
       ...(webhookUrl || DEFAULT_WEBHOOK_URL ? { notification_url: webhookUrl || DEFAULT_WEBHOOK_URL } : {})
     };
