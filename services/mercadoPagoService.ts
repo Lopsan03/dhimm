@@ -1,8 +1,7 @@
 import { loadMercadoPago } from '@mercadopago/sdk-js';
 
-// Prefer env, fall back to provided test credentials
-const PUBLIC_KEY = (import.meta as any).env?.VITE_MP_PUBLIC_KEY || 'TEST-a8cb9950-5db7-490d-ba81-031394f1c299';
-const ACCESS_TOKEN = (import.meta as any).env?.VITE_MP_ACCESS_TOKEN || 'TEST-4373910761408557-012309-3558695af674ac083263ab322f010d4f-3131107438';
+const PUBLIC_KEY = (import.meta as any).env?.VITE_MP_PUBLIC_KEY;
+const ACCESS_TOKEN = (import.meta as any).env?.VITE_MP_ACCESS_TOKEN;
 const DEFAULT_WEBHOOK_URL = (import.meta as any).env?.VITE_MP_WEBHOOK_URL;
 
 let mercadoPagoInstance: any = null;
