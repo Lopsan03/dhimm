@@ -21,6 +21,7 @@ const upload = multer({
 // Mercado Pago credentials (env override, fallback to provided test token)
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || process.env.VITE_MP_ACCESS_TOKEN || 'TEST-4373910761408557-012309-3558695af674ac083263ab322f010d4f-3131107438';
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET;
+const MP_ALLOW_UNSIGNED_WEBHOOKS = process.env.MP_ALLOW_UNSIGNED_WEBHOOKS === 'true';
 
 // Supabase credentials (must be provided)
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -68,8 +69,8 @@ const logger = new PaymentLogger();
 // WEBHOOK SIGNATURE VERIFICATION (PRODUCTION)
 // ============================================
 const validateWebhookSignature = (req) => {
-  // In TEST mode, skip signature validation (webhooks from Mercado Pago are not always signed)
-  if (MP_ACCESS_TOKEN?.includes('TEST')) {
+  // In TEST mode or when explicitly allowed, skip signature validation
+  if (MP_ACCESS_TOKEN?.includes('TEST') || MP_ALLOW_UNSIGNED_WEBHOOKS) {
     logger.warn('Webhook signature check skipped (TEST mode)');
     return true;
   }
