@@ -63,7 +63,12 @@ export const createPreference = async (
         pending: `${window.location.origin}/#/checkout/waiting/${orderId}`
       },
       payment_methods: {
-        excluded_payment_methods: [],
+        excluded_payment_methods: [
+          { id: 'oxxo' },
+          { id: 'paycash' },
+          { id: 'bancomer' },
+          { id: 'clabe' }
+        ],
         excluded_payment_types: [
           { id: 'ticket' },
           { id: 'atm' },
