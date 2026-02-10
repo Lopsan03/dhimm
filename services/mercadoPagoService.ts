@@ -84,6 +84,7 @@ export const createPreference = async (
 
     const data = await response.json();
     console.log('Preference created:', data);
+    console.log('Preference ID:', data?.id);
     sessionStorage.setItem('lastPreferenceId', data.id);
     return data;
   } catch (error) {
