@@ -6,11 +6,10 @@ const AboutUs: React.FC = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const teamImages = [
-    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/520142371_747738357634817_6449569351903308783_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=102&ccb=1-7&_nc_sid=833d8c&_nc_ohc=U7vdGMGGtfkQ7kNvwFBIhLr&_nc_oc=Adl_H26epm7M5VSvm5cgpULeGhLxI8KHJLpv_-ojTdXSgldiiyQT-f0PHYj5DX2c913B47HTOkoKGgrJkY9TDqmH&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=lzFMwbeNRXNsoTmGfTxkMA&oh=00_Afrup5N7bW-DHRG-YyvSZZbUf17075D8zWGpCKIC1EioQA&oe=6981DC1A',
-    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/520435903_747738457634807_1406220995861554003_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=104&ccb=1-7&_nc_sid=833d8c&_nc_ohc=Llr7Vy6C0XMQ7kNvwGC5lLU&_nc_oc=Adnw14M7O_Q79me6HyanscEE6EACWtKV-oKnKDg_Zf6IM2rCFgyEwqYXk1gvxuwddvrudT-sRpkp56edTlYzeI8p&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=bJ1kafyV2yL2At_YVcfs5g&oh=00_Afq2dPWwt9tKnKYnf83cRgou-WosVvVywdrFrHydi2cZ9w&oe=6981C08D',
-    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/518381081_748009747607678_430735431791261680_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=101&ccb=1-7&_nc_sid=833d8c&_nc_ohc=n_FiuZu--w0Q7kNvwEE3AKC&_nc_oc=Adle7QdWP5TT5nRPMtIfrQJCNyEp542m7j_rfdpWkwObWsuid_7ATMrs9tmg-sll17bdNy1euW5pQhRcB4FAn-Iq&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=x4H5rUyDUmctuwyBgDXnlg&oh=00_AfonLaedzVfOgSY77csEGkkMwXQQ3RwtFQtT--sbMenNVw&oe=6981DD23',
-    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/519417068_748009827607670_9134690841492495146_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=108&ccb=1-7&_nc_sid=833d8c&_nc_ohc=himDXdytDZ4Q7kNvwEXnVTx&_nc_oc=AdmeY-xE5dQW34dIx46nJBRDPhZHAG0znJgkouj4XmAGYTgGbcNjnJcnz0312dIEQ_lH07MECfxKYoDwcYT5qj4L&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=3zaPCirIq2sadu_0BiDJeg&oh=00_Afo6Df0uwVP2S5UIVSvKkVdfxd7ovZ1s2AkERsGayDZ2mw&oe=6981D8F4',
-    'https://scontent.fntr12-1.fna.fbcdn.net/v/t39.30808-6/518889920_747738387634814_8458555120026248066_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=100&ccb=1-7&_nc_sid=833d8c&_nc_ohc=y8Uun8AM_ngQ7kNvwGm8y4y&_nc_oc=AdmroQIuyXPokw9s04ChmG4vf90du8sIoTFOok46qPuzSp7_dPYVEMVTtxUudK3AgYgivSvTl7c-XwDhKfZ4svz8&_nc_zt=23&_nc_ht=scontent.fntr12-1.fna&_nc_gid=-rueVL3bw4Gop8j0rR_6bg&oh=00_AfrhWzFkOp3utaW8M2bqa-TutK5m9Syib1lffVX-Ud3Olg&oe=6981E39B'
+    '/about/team-1.jpg',
+    '/about/team-2.jpg',
+    '/about/team-3.jpg',
+    '/about/team-4.jpg'
   ];
 
   // Auto-rotate carousel every 4 seconds
@@ -19,7 +18,14 @@ const AboutUs: React.FC = () => {
       setCurrentImageIndex((prev) => (prev + 1) % teamImages.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [teamImages.length]);
+
+  // Clamp index if the image list changes
+  useEffect(() => {
+    if (currentImageIndex >= teamImages.length) {
+      setCurrentImageIndex(0);
+    }
+  }, [currentImageIndex, teamImages.length]);
 
   const nextImage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % teamImages.length);
@@ -47,8 +53,8 @@ const AboutUs: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex-grow">
         {/* Team Carousel */}
         <div className="mb-20">
-          <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden">
-            <div className="relative w-full bg-slate-900 group flex items-center justify-center" style={{ height: 'auto', aspectRatio: '16/10', maxHeight: '400px' }}>
+          <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden max-w-5xl mx-auto">
+            <div className="relative w-full bg-slate-900 group flex items-center justify-center" style={{ height: 'auto', aspectRatio: '5/4', maxHeight: '520px', minHeight: '320px' }}>
               {/* Carousel Images */}
               <img
                 src={teamImages[currentImageIndex]}
