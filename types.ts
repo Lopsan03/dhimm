@@ -12,7 +12,18 @@ export interface User {
 export interface Product {
   id: string;
   name: string;
-  category: 'Cremallera Hidráulica' | 'Cremallera Electrónica' | 'Bomba Hidráulica' | 'Transmisión' | 'Motor' | 'Diferencial' | 'Marcha' | 'Alternador';
+  category:
+    | 'Caja de Dirección Hidráulica'
+    | 'Caja de Dirección Electrónica'
+    | 'Cremallera Hidráulica'
+    | 'Cremallera Electrónica'
+    | 'Bomba Hidráulica'
+    | 'Transmisión'
+    | 'Motor'
+    | 'Diferencial'
+    | 'Marcha'
+    | 'Alternador'
+    | 'Componentes';
   brand: string;
   compatibleModels: string[];
   price: number;

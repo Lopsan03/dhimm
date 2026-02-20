@@ -75,6 +75,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
                 <span className="text-slate-400 font-black uppercase text-[10px] tracking-widest mb-2">MXN / Neto</span>
               </div>
 
+              <div className="mb-8 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold">
+                <i className="fas fa-boxes-stacked"></i>
+                <span>{product.stock} piezas disponibles en stock</span>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                 <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 text-xs font-bold text-slate-600">
                   <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0"><i className="fas fa-truck"></i></div>

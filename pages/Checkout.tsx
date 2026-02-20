@@ -65,6 +65,16 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
     };
   };
 
+  const getPickupShipmentData = (pickupLocation: string) => {
+    if (pickupLocation.includes('Querétaro')) {
+      return { address: 'C. Roberto Barrios LOCAL 1-C', city: 'Santiago de Querétaro', zip: '76030' };
+    }
+    if (pickupLocation.includes('Mérida')) {
+      return { address: 'Av. Itzáes 665 con, Sambulá', city: 'Mérida', zip: '97250' };
+    }
+    return { address: 'AV DE LA JUVENTUD #590', city: 'San Nicolás de los Garza', zip: '66455' };
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -147,13 +157,14 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
       }
 
       // Create Mercado Pago preference with notification_url
+      const pickupShipment = getPickupShipmentData(formData.pickupLocation);
       const preference = await createPreference(
         cart,
         { name: formData.name, email: formData.email },
         { 
-          address: formData.deliveryMethod === 'pickup' ? 'AV DE LA JUVENTUD #590' : formData.address, 
-          city: formData.deliveryMethod === 'pickup' ? 'San Nicolás de los Garza' : formData.city, 
-          zip: formData.deliveryMethod === 'pickup' ? '66455' : formData.zip, 
+          address: formData.deliveryMethod === 'pickup' ? pickupShipment.address : formData.address, 
+          city: formData.deliveryMethod === 'pickup' ? pickupShipment.city : formData.city, 
+          zip: formData.deliveryMethod === 'pickup' ? pickupShipment.zip : formData.zip, 
           cost: shipping 
         },
         orderId
@@ -358,6 +369,34 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
                       </div>
                       <p className="text-xs text-slate-600 leading-relaxed">Av. Itzáes 665 con, Sambulá</p>
                       <p className="text-xs text-slate-600">97250 Mérida, Yuc.</p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, pickupLocation: 'C. Roberto Barrios LOCAL 1-C, Casa Blanca, 76030 Santiago de Querétaro, Qro.' })}
+                  className={`p-4 rounded-xl border-2 transition-all text-left ${
+                    formData.pickupLocation === 'C. Roberto Barrios LOCAL 1-C, Casa Blanca, 76030 Santiago de Querétaro, Qro.'
+                      ? 'border-blue-600 bg-blue-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                      formData.pickupLocation === 'C. Roberto Barrios LOCAL 1-C, Casa Blanca, 76030 Santiago de Querétaro, Qro.' ? 'border-blue-600' : 'border-slate-300'
+                    }`}>
+                      {formData.pickupLocation === 'C. Roberto Barrios LOCAL 1-C, Casa Blanca, 76030 Santiago de Querétaro, Qro.' && (
+                        <div className="w-3 h-3 rounded-full bg-blue-600"></div>
+                      )}
+                    </div>
+                    <div className="flex-grow">
+                      <div className="flex items-center gap-2 mb-1">
+                        <i className="fas fa-map-marker-alt text-blue-600"></i>
+                        <span className="font-bold text-slate-800">Querétaro</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">C. Roberto Barrios LOCAL 1-C, Casa Blanca</p>
+                      <p className="text-xs text-slate-600">76030 Santiago de Querétaro, Qro.</p>
                     </div>
                   </div>
                 </button>

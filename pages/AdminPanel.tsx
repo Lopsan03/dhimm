@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Product, Order } from '../types';
 import { Link } from 'react-router-dom';
 import CustomDropdown from '../components/CustomDropdown';
@@ -14,19 +14,189 @@ interface AdminPanelProps {
   onUploadProductImage: (file: File) => Promise<string>;
 }
 
+const PRODUCT_CATEGORIES: Product['category'][] = [
+  'Caja de Dirección Hidráulica',
+  'Caja de Dirección Electrónica',
+  'Bomba Hidráulica',
+  'Transmisión',
+  'Motor',
+  'Diferencial',
+  'Marcha',
+  'Alternador',
+  'Componentes'
+];
+
+const MEXICO_BRANDS = [
+  '', 'Abarth', 'Acura', 'Alfa Romeo', 'Audi', 'BMW', 'Buick', 'BYD', 'Cadillac', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Citroën', 'Cupra', 'Dodge', 'Fiat', 'Ford', 'Geely', 'GMC', 'Great Wall', 'Haval', 'Honda', 'Hyundai', 'Infiniti', 'Isuzu', 'JAC', 'Jaguar', 'Jeep', 'Jetour', 'Kia', 'Land Rover', 'Lexus', 'Lincoln', 'Mazda', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 'Ram', 'Renault', 'SEAT', 'Skoda', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo', 'FAW', 'Foton', 'Kaiyi'
+];
+
+type AnalyticsGranularity = 'day' | 'week' | 'month';
+
+interface AnalyticsPoint {
+  key: string;
+  label: string;
+  visitors: number;
+  revenue: number;
+  orders: number;
+}
+
+interface AnalyticsSeriesResponse {
+  granularity: AnalyticsGranularity;
+  offset: number;
+  rangeStart: string;
+  rangeEndExclusive: string;
+  rangeLabel: string;
+  points: AnalyticsPoint[];
+  totals: {
+    visitors: number;
+    revenue: number;
+    orders: number;
+  };
+  canGoNext: boolean;
+}
+
+const defaultAnalytics: AnalyticsSeriesResponse = {
+  granularity: 'day',
+  offset: 0,
+  rangeStart: '',
+  rangeEndExclusive: '',
+  rangeLabel: '',
+  points: [],
+  totals: { visitors: 0, revenue: 0, orders: 0 },
+  canGoNext: false
+};
+
+const LineChart: React.FC<{ labels: string[]; values: number[]; color: string; formatValue?: (value: number) => string }> = ({ labels, values, color, formatValue = (value) => value.toLocaleString('es-MX') }) => {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  if (!values.length) {
+    return <div className="h-56 flex items-center justify-center text-slate-400 font-bold">Sin datos para este período</div>;
+  }
+
+  const width = 900;
+  const height = 260;
+  const padding = 30;
+  const maxValue = Math.max(...values, 1);
+  const minValue = Math.min(...values, 0);
+  const span = Math.max(maxValue - minValue, 1);
+  const stepX = values.length > 1 ? (width - padding * 2) / (values.length - 1) : 0;
+
+  const points = values.map((value, index) => {
+    const x = padding + index * stepX;
+    const normalized = (value - minValue) / span;
+    const y = height - padding - normalized * (height - padding * 2);
+    return { x, y };
+  });
+
+  const path = points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(' ');
+
+  const hoveredPoint = hoveredIndex !== null ? points[hoveredIndex] : null;
+
+  const getNearestIndexFromMouseEvent = (event: React.MouseEvent<SVGSVGElement>) => {
+    if (points.length === 0) return null;
+    const svg = event.currentTarget;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+
+    const svgPoint = svg.createSVGPoint();
+    svgPoint.x = event.clientX;
+    svgPoint.y = event.clientY;
+    const localPoint = svgPoint.matrixTransform(ctm.inverse());
+    const normalizedX = localPoint.x;
+
+    let closestIndex = 0;
+    let minDistance = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < points.length; index++) {
+      const distance = Math.abs(points[index].x - normalizedX);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = index;
+      }
+    }
+    return closestIndex;
+  };
+
+  return (
+    <div className="w-full relative">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-56"
+        onMouseMove={(event) => {
+          const nearestIndex = getNearestIndexFromMouseEvent(event);
+          if (nearestIndex !== null) setHoveredIndex(nearestIndex);
+        }}
+        onMouseLeave={() => setHoveredIndex(null)}
+      >
+        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#e2e8f0" strokeWidth="1" />
+        <path d={path} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+        {hoveredPoint && (
+          <line
+            x1={hoveredPoint.x}
+            y1={padding}
+            x2={hoveredPoint.x}
+            y2={height - padding}
+            stroke="#94a3b8"
+            strokeDasharray="4 4"
+            strokeWidth="1"
+            opacity="0.7"
+          />
+        )}
+
+        {points.map((point, index) => (
+          <g key={index}>
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={hoveredIndex === index ? 6 : 3.5}
+              fill={color}
+              className="transition-all duration-150"
+            />
+          </g>
+        ))}
+      </svg>
+
+      {hoveredPoint && hoveredIndex !== null && (
+        <div
+          className="absolute z-10 px-3 py-2 bg-slate-900 text-white text-xs font-black rounded-xl shadow-2xl pointer-events-none whitespace-nowrap"
+          style={{
+            left: `${(hoveredPoint.x / width) * 100}%`,
+            top: `${(hoveredPoint.y / height) * 100}%`,
+            transform: 'translate(-50%, -120%)'
+          }}
+        >
+          {labels[hoveredIndex]}: {formatValue(values[hoveredIndex])}
+        </div>
+      )}
+
+      <div className="grid gap-2 mt-2" style={{ gridTemplateColumns: `repeat(${Math.max(labels.length, 1)}, minmax(0, 1fr))` }}>
+        {labels.map((label, index) => (
+          <p key={`${label}-${index}`} className="text-[10px] text-slate-400 font-bold text-center truncate">{label}</p>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProduct, onUpdateOrder, onCreateProduct, onDeleteProduct, onUploadProductImage }) => {
-  const [tab, setTab] = useState<'inventory' | 'orders'>('inventory');
+  const [tab, setTab] = useState<'inventory' | 'orders' | 'analytics'>('inventory');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterOrderStatus, setFilterOrderStatus] = useState('All');
+  const [analyticsFilter, setAnalyticsFilter] = useState<AnalyticsGranularity>('week');
+  const [analyticsOffset, setAnalyticsOffset] = useState(0);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsSeriesResponse>(defaultAnalytics);
   const [editForm, setEditForm] = useState({
     name: '',
     price: 0,
     stock: 0,
     description: '',
-    category: 'Cremallera Hidráulica' as const,
+    category: 'Caja de Dirección Hidráulica' as const,
     brand: '',
     compatibleModels: '' as any
   });
@@ -35,7 +205,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
     price: 0,
     stock: 0,
     description: '',
-    category: 'Cremallera Hidráulica' as const,
+    category: 'Caja de Dirección Hidráulica' as const,
     brand: '',
     compatibleModels: '' as any
   });
@@ -43,8 +213,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
-  const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
+  const paidStatuses = ['pagado', 'paid', 'approved', 'completado', 'completed', 'enviado', 'shipped'];
+  const totalRevenue = orders
+    .filter(o => paidStatuses.includes((o.status || '').toLowerCase()))
+    .reduce((sum, o) => sum + o.total, 0);
   const pendingOrders = orders.filter(o => o.status === 'pendiente' || o.status === 'pagado' || o.status === 'enviado').length;
+
+  useEffect(() => {
+    if (tab !== 'analytics') return;
+
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    setAnalyticsLoading(true);
+
+    fetch(`${backendUrl}/api/analytics/series?granularity=${analyticsFilter}&offset=${analyticsOffset}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.error) throw new Error(data.error);
+        setAnalyticsData({
+          granularity: data.granularity || analyticsFilter,
+          offset: Number(data.offset || analyticsOffset),
+          rangeStart: data.rangeStart || '',
+          rangeEndExclusive: data.rangeEndExclusive || '',
+          rangeLabel: data.rangeLabel || '',
+          points: Array.isArray(data.points) ? data.points : [],
+          totals: {
+            visitors: Number(data?.totals?.visitors || 0),
+            revenue: Number(data?.totals?.revenue || 0),
+            orders: Number(data?.totals?.orders || 0)
+          },
+          canGoNext: Boolean(data?.canGoNext)
+        });
+      })
+      .catch((error) => {
+        console.warn('[admin] failed to fetch analytics series', error);
+        setAnalyticsData(defaultAnalytics);
+      })
+      .finally(() => setAnalyticsLoading(false));
+  }, [tab, analyticsFilter, analyticsOffset]);
 
   const filteredProducts = filterCategory === 'All' 
     ? products 
@@ -53,6 +258,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
   const filteredOrders = filterOrderStatus === 'All' 
     ? orders 
     : orders.filter(o => o.status?.toLowerCase() === filterOrderStatus.toLowerCase());
+
+  const analyticsLabels = analyticsData.points.map((point) => point.label);
+  const visitorsSeries = analyticsData.points.map((point) => point.visitors);
+  const revenueSeries = analyticsData.points.map((point) => point.revenue);
+  const ordersSeries = analyticsData.points.map((point) => point.orders);
 
   const OrderStatusBadge = ({ status }: { status: string }) => {
     const statusLower = status?.toLowerCase() || '';
@@ -118,7 +328,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       price: 0,
       stock: 0,
       description: '',
-      category: 'Cremallera Hidráulica' as const,
+      category: 'Caja de Dirección Hidráulica' as const,
       brand: '',
       compatibleModels: '' as any
     });
@@ -131,7 +341,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       price: 0,
       stock: 0,
       description: '',
-      category: 'Cremallera Hidráulica' as const,
+      category: 'Caja de Dirección Hidráulica' as const,
       brand: '',
       compatibleModels: '' as any
     });
@@ -194,6 +404,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
           >
             <i className="fas fa-receipt mr-2"></i> Pedidos
           </button>
+          <button 
+            onClick={() => setTab('analytics')}
+            className={`px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'analytics' ? 'bg-blue-600 shadow-xl shadow-blue-500/20 text-white' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+          >
+            <i className="fas fa-chart-line mr-2"></i> Analítica
+          </button>
         </div>
       </div>
 
@@ -234,7 +450,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
           <div className="flex flex-wrap gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 items-end">
             <CustomDropdown 
               label="Filtrar por Categoría" 
-              options={['All', 'Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica', 'Transmisión', 'Motor', 'Diferencial', 'Marcha', 'Alternador']} 
+              options={['All', ...PRODUCT_CATEGORIES]} 
               selected={filterCategory} 
               onSelect={setFilterCategory} 
               placeholder="Todas las Categorías"
@@ -307,7 +523,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
           </table>
           </div>
         </div>
-      ) : (
+      ) : tab === 'orders' ? (
         <div className="space-y-8 animate-fadeIn">
           <div className="flex flex-wrap gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 items-end">
             <CustomDropdown 
@@ -368,6 +584,96 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
             </div>
             ))
           )}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-8 animate-fadeIn">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Analítica de negocio</h3>
+                <p className="text-slate-500 text-sm font-bold">{analyticsData.rangeLabel || 'Sin período seleccionado'}</p>
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex bg-slate-100 p-1 rounded-2xl">
+                  <button
+                    onClick={() => { setAnalyticsFilter('day'); setAnalyticsOffset(0); }}
+                    className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider ${analyticsFilter === 'day' ? 'bg-blue-600 text-white' : 'text-slate-600'}`}
+                  >
+                    Día
+                  </button>
+                  <button
+                    onClick={() => { setAnalyticsFilter('week'); setAnalyticsOffset(0); }}
+                    className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider ${analyticsFilter === 'week' ? 'bg-blue-600 text-white' : 'text-slate-600'}`}
+                  >
+                    Semana
+                  </button>
+                  <button
+                    onClick={() => { setAnalyticsFilter('month'); setAnalyticsOffset(0); }}
+                    className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider ${analyticsFilter === 'month' ? 'bg-blue-600 text-white' : 'text-slate-600'}`}
+                  >
+                    Mes
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setAnalyticsOffset((prev) => prev + 1)}
+                  className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider hover:bg-slate-800"
+                >
+                  ← Anterior
+                </button>
+                <button
+                  onClick={() => setAnalyticsOffset((prev) => Math.max(0, prev - 1))}
+                  disabled={!analyticsData.canGoNext}
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-wider disabled:opacity-40"
+                >
+                  Siguiente →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-3xl border border-slate-100 p-6">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Visitantes únicos</p>
+              <p className="text-3xl font-black text-slate-900">{analyticsData.totals.visitors.toLocaleString('es-MX')}</p>
+            </div>
+            <div className="bg-white rounded-3xl border border-slate-100 p-6">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ingresos totales</p>
+              <p className="text-3xl font-black text-slate-900">${analyticsData.totals.revenue.toLocaleString('es-MX')}</p>
+            </div>
+            <div className="bg-white rounded-3xl border border-slate-100 p-6">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pedidos totales</p>
+              <p className="text-3xl font-black text-slate-900">{analyticsData.totals.orders.toLocaleString('es-MX')}</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8">
+            <h4 className="text-xl font-black text-slate-900 mb-4">Visitantes</h4>
+            {analyticsLoading ? (
+              <div className="h-56 flex items-center justify-center text-slate-400 font-bold">Cargando analítica...</div>
+            ) : (
+              <LineChart labels={analyticsLabels} values={visitorsSeries} color="#2563eb" formatValue={(value) => `${value.toLocaleString('es-MX')} visitas`} />
+            )}
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8">
+            <h4 className="text-xl font-black text-slate-900 mb-4">Ingresos</h4>
+            {analyticsLoading ? (
+              <div className="h-56 flex items-center justify-center text-slate-400 font-bold">Cargando analítica...</div>
+            ) : (
+              <LineChart labels={analyticsLabels} values={revenueSeries} color="#16a34a" formatValue={(value) => `$${value.toLocaleString('es-MX')}`} />
+            )}
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8">
+            <h4 className="text-xl font-black text-slate-900 mb-4">Pedidos</h4>
+            {analyticsLoading ? (
+              <div className="h-56 flex items-center justify-center text-slate-400 font-bold">Cargando analítica...</div>
+            ) : (
+              <LineChart labels={analyticsLabels} values={ordersSeries} color="#f59e0b" formatValue={(value) => `${value.toLocaleString('es-MX')} pedidos`} />
+            )}
           </div>
         </div>
       )}
@@ -519,14 +825,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                 <div className="grid grid-cols-1 gap-6">
                   <CustomDropdown 
                     label="Categoría"
-                    options={['Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica', 'Transmisión', 'Motor', 'Diferencial', 'Marcha', 'Alternador']}
+                    options={PRODUCT_CATEGORIES}
                     selected={editForm.category}
                     onSelect={(val: any) => setEditForm({...editForm, category: val})}
                     required
                   />
                   <CustomDropdown 
                     label="Marca"
-                    options={['', 'Abarth', 'Acura', 'Alfa Romeo', 'Aston Martin', 'Audi', 'Bentley', 'BMW', 'Buick', 'BYD', 'Cadillac', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Citroën', 'Cupra', 'Dacia', 'Daihatsu', 'Dodge', 'DS Automobiles', 'Ferrari', 'Fiat', 'Ford', 'Geely', 'Genesis', 'GMC', 'Great Wall', 'Haval', 'Honda', 'Hyundai', 'Infiniti', 'Isuzu', 'Jaguar', 'Jeep', 'Kia', 'Lamborghini', 'Land Rover', 'Lexus', 'Lincoln', 'Lotus', 'Maserati', 'Mazda', 'McLaren', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Opel', 'Peugeot', 'Porsche', 'Ram', 'Renault', 'Rolls-Royce', 'SEAT', 'Skoda', 'Smart', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo', 'FAW', 'Foton', 'JAC', 'Jetour', 'Kaiyi']}
+                    options={MEXICO_BRANDS}
                     selected={editForm.brand}
                     onSelect={(val) => setEditForm({...editForm, brand: val})}
                     placeholder="Selecciona una marca"
@@ -636,14 +942,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                 <div className="grid grid-cols-1 gap-6">
                   <CustomDropdown 
                     label="Categoría"
-                    options={['Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica', 'Transmisión', 'Motor', 'Diferencial', 'Marcha', 'Alternador']}
+                    options={PRODUCT_CATEGORIES}
                     selected={createForm.category}
                     onSelect={(val: any) => setCreateForm({...createForm, category: val})}
                     required
                   />
                   <CustomDropdown 
                     label="Marca"
-                    options={['', 'Abarth', 'Acura', 'Alfa Romeo', 'Aston Martin', 'Audi', 'Bentley', 'BMW', 'Buick', 'BYD', 'Cadillac', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Citroën', 'Cupra', 'Dacia', 'Daihatsu', 'Dodge', 'DS Automobiles', 'Ferrari', 'Fiat', 'Ford', 'Geely', 'Genesis', 'GMC', 'Great Wall', 'Haval', 'Honda', 'Hyundai', 'Infiniti', 'Isuzu', 'Jaguar', 'Jeep', 'Kia', 'Lamborghini', 'Land Rover', 'Lexus', 'Lincoln', 'Lotus', 'Maserati', 'Mazda', 'McLaren', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Opel', 'Peugeot', 'Porsche', 'Ram', 'Renault', 'Rolls-Royce', 'SEAT', 'Skoda', 'Smart', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo', 'FAW', 'Foton', 'JAC', 'Jetour', 'Kaiyi']}
+                    options={MEXICO_BRANDS}
                     selected={createForm.brand}
                     onSelect={(val) => setCreateForm({...createForm, brand: val})}
                     placeholder="Selecciona una marca"

@@ -306,8 +306,292 @@ app.use(express.urlencoded({ extended: true }));
 // In-memory store for pending orders (cleared on server restart)
 const pendingOrders = new Map();
 
+const getIsoDay = (date) => {
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return '';
+  return value.toISOString().split('T')[0];
+};
+
+const startOfUtcDay = (value) => {
+  const date = new Date(value);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+};
+
+const addUtcDays = (value, days) => {
+  const date = new Date(value);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date;
+};
+
+const startOfUtcWeek = (value) => {
+  const dayStart = startOfUtcDay(value);
+  const day = dayStart.getUTCDay();
+  const diffToMonday = (day + 6) % 7;
+  return addUtcDays(dayStart, -diffToMonday);
+};
+
+const startOfUtcMonth = (value) => {
+  const date = new Date(value);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+};
+
+const addUtcMonths = (value, months) => {
+  const date = new Date(value);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+};
+
+const buildAnalyticsRange = (granularity, offset) => {
+  const safeOffset = Number.isFinite(offset) && offset > 0 ? Math.floor(offset) : 0;
+  const now = new Date();
+
+  if (granularity === 'week') {
+    const currentWeekStart = startOfUtcWeek(now);
+    const pageWeeks = 8;
+    const endExclusive = addUtcDays(currentWeekStart, 7 - safeOffset * pageWeeks * 7);
+    const start = addUtcDays(endExclusive, -pageWeeks * 7);
+    return { granularity, start, endExclusive, points: pageWeeks };
+  }
+
+  if (granularity === 'month') {
+    const currentMonthStart = startOfUtcMonth(now);
+    const pageMonths = 12;
+    const endExclusive = addUtcMonths(currentMonthStart, 1 - safeOffset * pageMonths);
+    const start = addUtcMonths(endExclusive, -pageMonths);
+    return { granularity, start, endExclusive, points: pageMonths };
+  }
+
+  const todayStart = startOfUtcDay(now);
+  const pageDays = 7;
+  const endExclusive = addUtcDays(todayStart, 1 - safeOffset * pageDays);
+  const start = addUtcDays(endExclusive, -pageDays);
+  return { granularity: 'day', start, endExclusive, points: pageDays };
+};
+
+const getAnalyticsBucketKey = (dateValue, granularity) => {
+  const date = new Date(dateValue);
+  if (granularity === 'month') {
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+  if (granularity === 'week') {
+    return getIsoDay(startOfUtcWeek(date));
+  }
+  return getIsoDay(date);
+};
+
+const getAnalyticsBucketLabel = (key, granularity) => {
+  if (granularity === 'month') {
+    const [year, month] = key.split('-').map(Number);
+    const date = new Date(Date.UTC(year, (month || 1) - 1, 1));
+    return date.toLocaleDateString('es-MX', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+  }
+  if (granularity === 'week') {
+    const date = new Date(`${key}T00:00:00.000Z`);
+    const weekEnd = addUtcDays(date, 6);
+    return `${date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', timeZone: 'UTC' })} - ${weekEnd.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', timeZone: 'UTC' })}`;
+  }
+  const date = new Date(`${key}T00:00:00.000Z`);
+  return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', timeZone: 'UTC' });
+};
+
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.post('/api/analytics/visit', async (req, res) => {
+  try {
+    const { visitorId, path: visitedPath } = req.body || {};
+    if (!visitorId || typeof visitorId !== 'string') {
+      return res.status(400).json({ error: 'visitorId is required' });
+    }
+
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'Service role key required for analytics tracking' });
+    }
+
+    const now = new Date();
+    const day = getIsoDay(now);
+
+    const { error } = await supabaseAdmin
+      .from('page_visits')
+      .upsert(
+        {
+          visitor_id: visitorId,
+          path: typeof visitedPath === 'string' ? visitedPath : '/',
+          visit_date: day,
+          created_at: now.toISOString()
+        },
+        { onConflict: 'visitor_id,visit_date' }
+      );
+
+    if (error) {
+      console.error('Error saving visit analytics:', error);
+      return res.status(500).json({ error: 'Failed to persist visit analytics' });
+    }
+
+    res.json({ tracked: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/analytics/visits', async (_req, res) => {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'Service role key required for analytics stats' });
+    }
+
+    const now = new Date();
+    const weekAgo = new Date(now);
+    weekAgo.setDate(now.getDate() - 7);
+    const monthAgo = new Date(now);
+    monthAgo.setDate(now.getDate() - 30);
+
+    const { data, error } = await supabaseAdmin
+      .from('page_visits')
+      .select('visitor_id, visit_date')
+
+    if (error) {
+      console.error('Error fetching visit analytics:', error);
+      return res.status(500).json({ error: 'Failed to fetch visit analytics' });
+    }
+
+    const rows = data || [];
+    const weekVisitorIds = new Set();
+    const monthVisitorIds = new Set();
+    const allVisitorIds = new Set();
+
+    for (const row of rows) {
+      const visitDate = new Date(`${row.visit_date}T00:00:00.000Z`);
+      if (Number.isNaN(visitDate.getTime())) continue;
+
+      allVisitorIds.add(row.visitor_id);
+      if (visitDate >= weekAgo) weekVisitorIds.add(row.visitor_id);
+      if (visitDate >= monthAgo) monthVisitorIds.add(row.visitor_id);
+    }
+
+    res.json({
+      weekUniqueVisitors: weekVisitorIds.size,
+      monthUniqueVisitors: monthVisitorIds.size,
+      totalTrackedVisitors: allVisitorIds.size
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/analytics/series', async (req, res) => {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'Service role key required for analytics series' });
+    }
+
+    const granularityInput = (req.query.granularity || 'day').toString().toLowerCase();
+    const granularity = ['day', 'week', 'month'].includes(granularityInput) ? granularityInput : 'day';
+    const offset = Number.parseInt((req.query.offset || '0').toString(), 10);
+
+    const range = buildAnalyticsRange(granularity, Number.isNaN(offset) ? 0 : offset);
+    const rangeStartIso = range.start.toISOString();
+    const rangeEndIso = range.endExclusive.toISOString();
+
+    const { data: visitRows, error: visitsError } = await supabaseAdmin
+      .from('page_visits')
+      .select('visitor_id, visit_date')
+      .gte('visit_date', getIsoDay(range.start))
+      .lt('visit_date', getIsoDay(range.endExclusive));
+
+    if (visitsError) {
+      return res.status(500).json({ error: `Failed to fetch visits: ${visitsError.message}` });
+    }
+
+    const { data: orderRows, error: ordersError } = await supabaseAdmin
+      .from('orders')
+      .select('id, total, status, created_at')
+      .gte('created_at', rangeStartIso)
+      .lt('created_at', rangeEndIso);
+
+    if (ordersError) {
+      return res.status(500).json({ error: `Failed to fetch orders: ${ordersError.message}` });
+    }
+
+    const keys = [];
+    if (granularity === 'month') {
+      for (let i = 0; i < range.points; i++) {
+        const monthDate = addUtcMonths(range.start, i);
+        keys.push(getAnalyticsBucketKey(monthDate, granularity));
+      }
+    } else if (granularity === 'week') {
+      for (let i = 0; i < range.points; i++) {
+        const weekDate = addUtcDays(range.start, i * 7);
+        keys.push(getAnalyticsBucketKey(weekDate, granularity));
+      }
+    } else {
+      for (let i = 0; i < range.points; i++) {
+        const dayDate = addUtcDays(range.start, i);
+        keys.push(getAnalyticsBucketKey(dayDate, granularity));
+      }
+    }
+
+    const visitorsByBucket = new Map();
+    const revenueByBucket = new Map();
+    const ordersByBucket = new Map();
+    const uniqueVisitorsPeriod = new Set();
+
+    keys.forEach((key) => {
+      visitorsByBucket.set(key, new Set());
+      revenueByBucket.set(key, 0);
+      ordersByBucket.set(key, 0);
+    });
+
+    for (const row of visitRows || []) {
+      const key = getAnalyticsBucketKey(`${row.visit_date}T00:00:00.000Z`, granularity);
+      if (!visitorsByBucket.has(key)) continue;
+      visitorsByBucket.get(key).add(row.visitor_id);
+      uniqueVisitorsPeriod.add(row.visitor_id);
+    }
+
+    const paidStatuses = new Set(['pagado', 'paid', 'approved', 'completado', 'completed', 'enviado', 'shipped']);
+    for (const row of orderRows || []) {
+      const key = getAnalyticsBucketKey(row.created_at, granularity);
+      if (!ordersByBucket.has(key)) continue;
+
+      ordersByBucket.set(key, Number(ordersByBucket.get(key) || 0) + 1);
+      if (paidStatuses.has((row.status || '').toString().toLowerCase())) {
+        revenueByBucket.set(key, Number(revenueByBucket.get(key) || 0) + Number(row.total || 0));
+      }
+    }
+
+    const points = keys.map((key) => ({
+      key,
+      label: getAnalyticsBucketLabel(key, granularity),
+      visitors: (visitorsByBucket.get(key) || new Set()).size,
+      revenue: Number(revenueByBucket.get(key) || 0),
+      orders: Number(ordersByBucket.get(key) || 0)
+    }));
+
+    const totals = points.reduce(
+      (acc, point) => {
+        acc.revenue += point.revenue;
+        acc.orders += point.orders;
+        return acc;
+      },
+      { visitors: uniqueVisitorsPeriod.size, revenue: 0, orders: 0 }
+    );
+
+    const rangeLabel = `${range.start.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })} - ${addUtcDays(range.endExclusive, -1).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })}`;
+
+    return res.json({
+      granularity,
+      offset: Number.isNaN(offset) ? 0 : Math.max(0, offset),
+      rangeStart: getIsoDay(range.start),
+      rangeEndExclusive: getIsoDay(range.endExclusive),
+      rangeLabel,
+      points,
+      totals,
+      canGoNext: (Number.isNaN(offset) ? 0 : offset) > 0
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 // Diagnostic: list available payment methods for the configured MP account

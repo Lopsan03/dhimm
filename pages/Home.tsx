@@ -27,10 +27,10 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart }) => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
             <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-4 uppercase tracking-tighter">
-              Expertos en <span className="text-blue-500">Dirección Hidráulica</span>
+              Expertos en <span className="text-blue-500">Dirección Electrónica</span>
             </h1>
             <p className="text-lg text-slate-300 mb-8 leading-relaxed">
-              Venta de cremalleras y bombas hidráulicas para todas las marcas. Calidad garantizada en cada pieza.
+              Venta de cajas de dirección y bombas hidráulicas para todas las marcas. Calidad garantizada en cada pieza.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link 

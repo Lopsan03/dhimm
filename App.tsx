@@ -50,6 +50,17 @@ const App: React.FC = () => {
     return s || 'pendiente';
   };
 
+  const normalizeTerminology = (value: string) => {
+    if (!value) return value;
+    return value.replace(/cremallera/gi, 'Caja de Dirección');
+  };
+
+  const normalizeCategory = (category: string) => {
+    if (category === 'Cremallera Hidráulica') return 'Caja de Dirección Hidráulica';
+    if (category === 'Cremallera Electrónica') return 'Caja de Dirección Electrónica';
+    return category;
+  };
+
   const fetchOrders = async (userId: string) => {
     // Fetch via backend (uses service role) to bypass RLS restrictions
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -132,14 +143,14 @@ const App: React.FC = () => {
 
         const productsWithImages = (productsData || []).map((p: any) => ({
           id: p.id,
-          name: p.name,
-          category: p.category,
+          name: normalizeTerminology(p.name),
+          category: normalizeCategory(p.category),
           brand: p.brand,
           compatibleModels: p.compatible_models || [],
           price: parseFloat(p.price),
           stock: p.stock,
           image: imageMap[p.name] || p.image,
-          description: p.description || ''
+          description: normalizeTerminology(p.description || '')
         }));
         console.log('[products] parsed count:', productsWithImages.length);
         setProducts(productsWithImages);
@@ -306,6 +317,26 @@ const App: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const existingVisitorId = localStorage.getItem('dhimma_visitor_id');
+    const visitorId = existingVisitorId || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `visitor-${Date.now()}-${Math.floor(Math.random() * 1000000)}`);
+
+    if (!existingVisitorId) {
+      localStorage.setItem('dhimma_visitor_id', visitorId);
+    }
+
+    fetch(`${backendUrl}/api/analytics/visit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visitorId, path: window.location.pathname })
+    }).catch((error) => {
+      console.warn('[analytics] visit tracking failed', error);
+    });
+  }, []);
+
   // Watch for product refresh flag (set after successful payment to update stock)
   useEffect(() => {
     const checkRefresh = () => {
@@ -318,14 +349,14 @@ const App: React.FC = () => {
           .then(productsData => {
             const productsWithImages = (productsData || []).map((p: any) => ({
               id: p.id,
-              name: p.name,
-              category: p.category,
+              name: normalizeTerminology(p.name),
+              category: normalizeCategory(p.category),
               brand: p.brand,
               compatibleModels: p.compatible_models || [],
               price: parseFloat(p.price),
               stock: p.stock,
               image: imageMap[p.name] || p.image,
-              description: p.description || ''
+              description: normalizeTerminology(p.description || '')
             }));
             setProducts(productsWithImages);
             console.log('[products] refreshed, new stock values loaded');
@@ -525,14 +556,14 @@ const App: React.FC = () => {
       const created = await resp.json();
       const mapped: Product = {
         id: created.id,
-        name: created.name,
-        category: created.category,
+        name: normalizeTerminology(created.name),
+        category: normalizeCategory(created.category) as Product['category'],
         brand: created.brand,
         compatibleModels: created.compatible_models || [],
         price: parseFloat(created.price),
         stock: created.stock,
         image: imageMap[created.name] || created.image,
-        description: created.description || ''
+        description: normalizeTerminology(created.description || '')
       };
 
       setProducts(prev => [mapped, ...prev]);

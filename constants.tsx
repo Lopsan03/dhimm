@@ -3,7 +3,7 @@ import { Product, Order } from './types';
 
 export const COMPANY_INFO = {
   name: "Dhimma Automotriz",
-  description: "Somos una empresa especializada en la venta de cremalleras hidráulicas, electrónicas y bombas hidráulicas. Manejamos todas las marcas y modelos.",
+  description: "Somos una empresa especializada en la venta de cajas de dirección hidráulicas, electrónicas y bombas hidráulicas. Manejamos todas las marcas y modelos.",
   category: "Automotive Wholesaler",
   address: "AV DE LA JUVENTUD #590, San Nicolás de los Garza, Mexico",
   phone: "81 3273 2525",
@@ -14,14 +14,14 @@ export const COMPANY_INFO = {
 export const MOCK_PRODUCTS: Product[] = [
   {
     id: '1',
-    name: 'Cremallera Hidráulica Nissan Tsuru III',
-    category: 'Cremallera Hidráulica',
+    name: 'Caja de Dirección Hidráulica Nissan Tsuru III',
+    category: 'Caja de Dirección Hidráulica',
     brand: 'Nissan',
     compatibleModels: ['Tsuru III 1992-2017'],
     price: 3450,
     stock: 12,
     image: 'https://picsum.photos/seed/nissan1/400/300',
-    description: 'Cremallera de dirección hidráulica reconstruida con componentes originales para máxima durabilidad.'
+    description: 'Caja de dirección hidráulica reconstruida con componentes originales para máxima durabilidad.'
   },
   {
     id: '2',
@@ -36,8 +36,8 @@ export const MOCK_PRODUCTS: Product[] = [
   },
   {
     id: '3',
-    name: 'Cremallera Electrónica Ford Fusion',
-    category: 'Cremallera Electrónica',
+    name: 'Caja de Dirección Electrónica Ford Fusion',
+    category: 'Caja de Dirección Electrónica',
     brand: 'Ford',
     compatibleModels: ['Fusion 2013-2018'],
     price: 8900,
@@ -47,8 +47,8 @@ export const MOCK_PRODUCTS: Product[] = [
   },
   {
     id: '4',
-    name: 'Cremallera Hidráulica VW Jetta A4',
-    category: 'Cremallera Hidráulica',
+    name: 'Caja de Dirección Hidráulica VW Jetta A4',
+    category: 'Caja de Dirección Hidráulica',
     brand: 'Volkswagen',
     compatibleModels: ['Jetta A4', 'Golf A4', 'Beetle'],
     price: 3150,
@@ -69,8 +69,8 @@ export const MOCK_PRODUCTS: Product[] = [
   },
   {
     id: '6',
-    name: 'Cremallera Hidráulica Chevrolet Aveo',
-    category: 'Cremallera Hidráulica',
+    name: 'Caja de Dirección Hidráulica Chevrolet Aveo',
+    category: 'Caja de Dirección Hidráulica',
     brand: 'Chevrolet',
     compatibleModels: ['Aveo 2008-2017'],
     price: 2850,

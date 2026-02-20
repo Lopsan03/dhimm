@@ -4,6 +4,7 @@ import { Product } from '../types';
 import ProductCard from '../components/ProductCard';
 import Footer from '../components/Footer';
 import CustomDropdown from '../components/CustomDropdown';
+import { COMPANY_INFO } from '../constants';
 
 interface CatalogProps {
   products: Product[];
@@ -16,17 +17,19 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   const brands = useMemo(() => [
-    'All', 'Abarth', 'Acura', 'Alfa Romeo', 'Aston Martin', 'Audi', 'Bentley', 'BMW', 'Buick', 'BYD', 'Cadillac', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Citroën', 'Cupra', 'Dacia', 'Daihatsu', 'Dodge', 'DS Automobiles', 'Ferrari', 'Fiat', 'Ford', 'Geely', 'Genesis', 'GMC', 'Great Wall', 'Haval', 'Honda', 'Hyundai', 'Infiniti', 'Isuzu', 'Jaguar', 'Jeep', 'Kia', 'Lamborghini', 'Land Rover', 'Lexus', 'Lincoln', 'Lotus', 'Maserati', 'Mazda', 'McLaren', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Opel', 'Peugeot', 'Porsche', 'Ram', 'Renault', 'Rolls-Royce', 'SEAT', 'Skoda', 'Smart', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo', 'FAW', 'Foton', 'JAC', 'Jetour', 'Kaiyi'
+    'All', 'Abarth', 'Acura', 'Alfa Romeo', 'Audi', 'BMW', 'Buick', 'BYD', 'Cadillac', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Citroën', 'Cupra', 'Dodge', 'Fiat', 'Ford', 'Geely', 'GMC', 'Great Wall', 'Haval', 'Honda', 'Hyundai', 'Infiniti', 'Isuzu', 'JAC', 'Jaguar', 'Jeep', 'Jetour', 'Kia', 'Land Rover', 'Lexus', 'Lincoln', 'Mazda', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 'Ram', 'Renault', 'SEAT', 'Skoda', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo', 'FAW', 'Foton', 'Kaiyi'
   ], []);
   
-  const categories = ['All', 'Cremallera Hidráulica', 'Cremallera Electrónica', 'Bomba Hidráulica', 'Transmisión', 'Motor', 'Diferencial', 'Marcha', 'Alternador'];
+  const categories = ['All', 'Caja de Dirección Hidráulica', 'Caja de Dirección Electrónica', 'Bomba Hidráulica', 'Transmisión', 'Motor', 'Diferencial', 'Marcha', 'Alternador', 'Componentes'];
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           p.compatibleModels.some(m => m.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesBrand = selectedBrand === 'All' || p.brand === selectedBrand;
-    const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory ||
+      (selectedCategory === 'Caja de Dirección Hidráulica' && p.category === 'Cremallera Hidráulica') ||
+      (selectedCategory === 'Caja de Dirección Electrónica' && p.category === 'Cremallera Electrónica');
     return matchesSearch && matchesBrand && matchesCategory;
   });
 
@@ -75,11 +78,27 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
         </div>
 
         {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
-            {filteredProducts.map(p => (
-              <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
+              {filteredProducts.map(p => (
+                <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} />
+              ))}
+            </div>
+
+            <div className="mt-16 bg-white border border-slate-200 rounded-3xl p-8 md:p-10 shadow-sm text-center">
+              <p className="text-2xl font-black text-slate-900 tracking-tight mb-3">Si no encontraste el producto, cotiza con nosotros</p>
+              <p className="text-slate-500 mb-6">Te ayudamos a ubicar la pieza exacta para tu vehículo.</p>
+              <a
+                href={COMPANY_INFO.whatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-green-500 text-white rounded-2xl font-black uppercase tracking-wider text-xs hover:bg-green-600 transition-all"
+              >
+                <i className="fab fa-whatsapp text-base"></i>
+                Contáctanos
+              </a>
+            </div>
+          </>
         ) : (
           <div className="bg-white border-2 border-dashed border-slate-200 rounded-[3rem] p-32 text-center shadow-sm">
             <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 text-slate-200"><i className="fas fa-search text-4xl"></i></div>
