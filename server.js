@@ -23,9 +23,25 @@ const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || process.env.VITE_MP_ACCES
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET;
 const MP_ALLOW_UNSIGNED_WEBHOOKS = process.env.MP_ALLOW_UNSIGNED_WEBHOOKS === 'true';
 
+const sanitizeEnvValue = (value) => {
+  if (typeof value !== 'string') return value;
+  return value.trim().replace(/^['\"]|['\"]$/g, '');
+};
+
+const normalizeBaseUrl = (value) => {
+  const sanitized = sanitizeEnvValue(value);
+  if (!sanitized) return null;
+  try {
+    const url = new URL(sanitized);
+    return `${url.origin}${url.pathname.replace(/\/$/, '')}`;
+  } catch {
+    return null;
+  }
+};
+
 // Skydropx shipping quotation configuration
-const SKYDROPX_API_KEY = process.env.SKYDROPX_API_KEY;
-const SKYDROPX_API_BASE_URL = process.env.SKYDROPX_API_BASE_URL || 'https://api.skydropx.com';
+const SKYDROPX_API_KEY = sanitizeEnvValue(process.env.SKYDROPX_API_KEY);
+const SKYDROPX_API_BASE_URL = normalizeBaseUrl(process.env.SKYDROPX_API_BASE_URL) || 'https://api.skydropx.com';
 const SKYDROPX_ORIGIN = {
   company: process.env.SKYDROPX_ORIGIN_COMPANY || 'Dhimma Automotriz',
   name: process.env.SKYDROPX_ORIGIN_NAME || 'Dhimma',
@@ -446,7 +462,7 @@ app.post('/api/shipping/quote', async (req, res) => {
       }
     };
 
-    const tryRequest = async (url, authHeader) => {
+    const tryRequest = async (url, authHeader, authLabel) => {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -458,28 +474,33 @@ app.post('/api/shipping/quote', async (req, res) => {
 
       if (!response.ok) {
         const body = await response.text();
-        throw new Error(`${response.status} ${response.statusText} - ${body}`);
+        throw new Error(`[${authLabel}] ${response.status} ${response.statusText} - ${body.slice(0, 500)}`);
       }
 
       return response.json();
     };
 
-    const candidateUrls = [
-      `${SKYDROPX_API_BASE_URL}/v1/quotations`,
-      `${SKYDROPX_API_BASE_URL}/api/v1/quotations`
-    ];
+    const baseUrlCandidates = Array.from(new Set([
+      SKYDROPX_API_BASE_URL,
+      'https://api.skydropx.com'
+    ].map(normalizeBaseUrl).filter(Boolean)));
+
+    const candidateUrls = baseUrlCandidates.flatMap((baseUrl) => ([
+      `${baseUrl}/v1/quotations`,
+      `${baseUrl}/api/v1/quotations`
+    ]));
     const candidateAuthHeaders = [
-      `Bearer ${SKYDROPX_API_KEY}`,
-      `Token token=${SKYDROPX_API_KEY}`
+      { value: `Bearer ${SKYDROPX_API_KEY}`, label: 'Bearer' },
+      { value: `Token token=${SKYDROPX_API_KEY}`, label: 'Token' }
     ];
 
     let quotation = null;
     let lastError = null;
 
     for (const url of candidateUrls) {
-      for (const authHeader of candidateAuthHeaders) {
+      for (const auth of candidateAuthHeaders) {
         try {
-          quotation = await tryRequest(url, authHeader);
+          quotation = await tryRequest(url, auth.value, auth.label);
           if (quotation) break;
         } catch (error) {
           lastError = error;
