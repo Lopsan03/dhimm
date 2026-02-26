@@ -499,7 +499,11 @@ app.post('/api/shipping/quote', async (req, res) => {
           ok: false,
           responseSnippet: bodySnippet
         });
-        throw new Error(`[${authLabel}] ${response.status} ${response.statusText} - ${bodyText.slice(0, 500)}`);
+        const requestError = new Error(`[${authLabel}] ${response.status} ${response.statusText} - ${bodyText.slice(0, 500)}`);
+        requestError.status = response.status;
+        requestError.url = url;
+        requestError.authLabel = authLabel;
+        throw requestError;
       }
 
       registerAttempt({
@@ -544,6 +548,14 @@ app.post('/api/shipping/quote', async (req, res) => {
         }
       }
       if (quotation) break;
+    }
+
+    const hasPrimaryAuthFailure = debugAttempts.some(
+      (attempt) => attempt.status === 401 && typeof attempt.url === 'string' && attempt.url.endsWith('/v1/quotations')
+    );
+
+    if (!quotation && hasPrimaryAuthFailure) {
+      throw new Error('Skydropx authentication failed (401 Bad credentials). Verify SKYDROPX_API_KEY in Railway backend environment.');
     }
 
     if (!quotation) {
