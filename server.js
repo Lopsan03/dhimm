@@ -42,6 +42,7 @@ const normalizeBaseUrl = (value) => {
 // Skydropx shipping quotation configuration
 const SKYDROPX_API_KEY = sanitizeEnvValue(process.env.SKYDROPX_API_KEY);
 const SKYDROPX_API_BASE_URL = normalizeBaseUrl(process.env.SKYDROPX_API_BASE_URL) || 'https://api.skydropx.com';
+const SKYDROPX_DEBUG = process.env.SKYDROPX_DEBUG === 'true';
 const SKYDROPX_ORIGIN = {
   company: process.env.SKYDROPX_ORIGIN_COMPANY || 'Dhimma Automotriz',
   name: process.env.SKYDROPX_ORIGIN_NAME || 'Dhimma',
@@ -429,6 +430,21 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.post('/api/shipping/quote', async (req, res) => {
+  const debugId = `ship_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const debugEnabled = SKYDROPX_DEBUG || req.query?.debug === '1';
+  const debugAttempts = [];
+
+  const registerAttempt = ({ url, authLabel, status, ok, responseSnippet, error }) => {
+    debugAttempts.push({
+      url,
+      auth: authLabel,
+      status,
+      ok,
+      responseSnippet,
+      error
+    });
+  };
+
   try {
     if (!SKYDROPX_API_KEY) {
       return res.status(503).json({ error: 'SKYDROPX_API_KEY is not configured on backend' });
@@ -472,12 +488,33 @@ app.post('/api/shipping/quote', async (req, res) => {
         body: JSON.stringify(payload)
       });
 
+      const bodyText = await response.text();
+      const bodySnippet = bodyText.slice(0, 300);
+
       if (!response.ok) {
-        const body = await response.text();
-        throw new Error(`[${authLabel}] ${response.status} ${response.statusText} - ${body.slice(0, 500)}`);
+        registerAttempt({
+          url,
+          authLabel,
+          status: response.status,
+          ok: false,
+          responseSnippet: bodySnippet
+        });
+        throw new Error(`[${authLabel}] ${response.status} ${response.statusText} - ${bodyText.slice(0, 500)}`);
       }
 
-      return response.json();
+      registerAttempt({
+        url,
+        authLabel,
+        status: response.status,
+        ok: true,
+        responseSnippet: bodySnippet
+      });
+
+      try {
+        return bodyText ? JSON.parse(bodyText) : {};
+      } catch {
+        return { raw: bodyText };
+      }
     };
 
     const baseUrlCandidates = Array.from(new Set([
@@ -544,8 +581,27 @@ app.post('/api/shipping/quote', async (req, res) => {
       options: normalizedOptions
     });
   } catch (error) {
-    console.error('Skydropx quote error:', error.message);
-    return res.status(500).json({ error: 'Failed to calculate shipping quote', detail: error.message });
+    console.error('Skydropx quote error:', {
+      debugId,
+      message: error?.message,
+      configuredBaseUrl: SKYDROPX_API_BASE_URL,
+      attempts: debugAttempts
+    });
+
+    const responsePayload = {
+      error: 'Failed to calculate shipping quote',
+      detail: error?.message || 'Unknown shipping error',
+      debugId
+    };
+
+    if (SKYDROPX_DEBUG || req.query?.debug === '1') {
+      responsePayload.debug = {
+        configuredBaseUrl: SKYDROPX_API_BASE_URL,
+        attempts: debugAttempts
+      };
+    }
+
+    return res.status(500).json(responsePayload);
   }
 });
 

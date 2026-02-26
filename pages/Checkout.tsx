@@ -105,7 +105,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
     setShippingError('');
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-      const response = await fetch(`${backendUrl}/api/shipping/quote`, {
+      const shippingDebug = import.meta.env.VITE_SHIPPING_DEBUG === 'true';
+      const shippingQuoteUrl = `${backendUrl}/api/shipping/quote${shippingDebug ? '?debug=1' : ''}`;
+
+      const response = await fetch(shippingQuoteUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -122,9 +125,25 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
         })
       });
 
-      const data = await response.json();
+      const rawText = await response.text();
+      let data: any = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        data = { raw: rawText };
+      }
+
       if (!response.ok) {
-        throw new Error(data?.error || 'No se pudo cotizar el envío');
+        console.error('Shipping quote backend error', {
+          status: response.status,
+          backendUrl,
+          shippingQuoteUrl,
+          response: data
+        });
+
+        const debugId = data?.debugId ? ` (debugId: ${data.debugId})` : '';
+        const detail = data?.detail ? ` ${data.detail}` : '';
+        throw new Error(`${data?.error || 'No se pudo cotizar el envío.'}${detail}${debugId}`.trim());
       }
 
       const amount = Number(data?.amount || 0);
