@@ -23,6 +23,21 @@ const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || process.env.VITE_MP_ACCES
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET;
 const MP_ALLOW_UNSIGNED_WEBHOOKS = process.env.MP_ALLOW_UNSIGNED_WEBHOOKS === 'true';
 
+// Skydropx shipping quotation configuration
+const SKYDROPX_API_KEY = process.env.SKYDROPX_API_KEY;
+const SKYDROPX_API_BASE_URL = process.env.SKYDROPX_API_BASE_URL || 'https://api.skydropx.com';
+const SKYDROPX_ORIGIN = {
+  company: process.env.SKYDROPX_ORIGIN_COMPANY || 'Dhimma Automotriz',
+  name: process.env.SKYDROPX_ORIGIN_NAME || 'Dhimma',
+  phone: process.env.SKYDROPX_ORIGIN_PHONE || '8132732525',
+  email: process.env.SKYDROPX_ORIGIN_EMAIL || 'ventas_duar@hotmail.com',
+  street_1: process.env.SKYDROPX_ORIGIN_STREET || 'AV DE LA JUVENTUD #590',
+  city: process.env.SKYDROPX_ORIGIN_CITY || 'San Nicolás de los Garza',
+  province: process.env.SKYDROPX_ORIGIN_STATE || 'Nuevo León',
+  zip_code: process.env.SKYDROPX_ORIGIN_ZIP || '66455',
+  country: process.env.SKYDROPX_ORIGIN_COUNTRY || 'MX'
+};
+
 // Supabase credentials (must be provided)
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -395,6 +410,122 @@ const getAnalyticsBucketLabel = (key, granularity) => {
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.post('/api/shipping/quote', async (req, res) => {
+  try {
+    if (!SKYDROPX_API_KEY) {
+      return res.status(503).json({ error: 'SKYDROPX_API_KEY is not configured on backend' });
+    }
+
+    const destination = req.body?.destination || {};
+    const requiredFields = ['street_1', 'city', 'province', 'zip_code', 'country'];
+    const missing = requiredFields.filter((field) => !destination?.[field]);
+    if (missing.length > 0) {
+      return res.status(400).json({ error: `Missing destination fields: ${missing.join(', ')}` });
+    }
+
+    const payload = {
+      address_from: SKYDROPX_ORIGIN,
+      address_to: {
+        company: destination.company || destination.name || 'Cliente',
+        name: destination.name || 'Cliente',
+        phone: destination.phone || '0000000000',
+        email: destination.email || 'cliente@dhimm.local',
+        street_1: destination.street_1,
+        city: destination.city,
+        province: destination.province,
+        zip_code: destination.zip_code,
+        country: destination.country
+      },
+      parcel: {
+        weight: 5,
+        length: 40,
+        width: 30,
+        height: 20
+      }
+    };
+
+    const tryRequest = async (url, authHeader) => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`${response.status} ${response.statusText} - ${body}`);
+      }
+
+      return response.json();
+    };
+
+    const candidateUrls = [
+      `${SKYDROPX_API_BASE_URL}/v1/quotations`,
+      `${SKYDROPX_API_BASE_URL}/api/v1/quotations`
+    ];
+    const candidateAuthHeaders = [
+      `Bearer ${SKYDROPX_API_KEY}`,
+      `Token token=${SKYDROPX_API_KEY}`
+    ];
+
+    let quotation = null;
+    let lastError = null;
+
+    for (const url of candidateUrls) {
+      for (const authHeader of candidateAuthHeaders) {
+        try {
+          quotation = await tryRequest(url, authHeader);
+          if (quotation) break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (quotation) break;
+    }
+
+    if (!quotation) {
+      throw lastError || new Error('Unable to retrieve quotation from Skydropx');
+    }
+
+    const options = quotation?.data || quotation?.quotations || quotation?.rates || quotation?.shipping_rates || [];
+    const normalizedOptions = (Array.isArray(options) ? options : [])
+      .map((option) => {
+        const amount = Number(option?.total || option?.amount || option?.price || option?.cost || option?.total_price || 0);
+        return {
+          amount,
+          currency: option?.currency || option?.currency_code || 'MXN',
+          provider: option?.provider || option?.carrier || option?.name || 'Skydropx'
+        };
+      })
+      .filter((option) => Number.isFinite(option.amount) && option.amount > 0)
+      .sort((a, b) => a.amount - b.amount);
+
+    if (normalizedOptions.length === 0) {
+      return res.status(422).json({ error: 'No shipping options returned by Skydropx', raw: quotation });
+    }
+
+    const selected = normalizedOptions[0];
+    return res.json({
+      amount: selected.amount,
+      currency: selected.currency,
+      provider: selected.provider,
+      package: {
+        weight_kg: 5,
+        length_cm: 40,
+        width_cm: 30,
+        height_cm: 20
+      },
+      options: normalizedOptions
+    });
+  } catch (error) {
+    console.error('Skydropx quote error:', error.message);
+    return res.status(500).json({ error: 'Failed to calculate shipping quote', detail: error.message });
+  }
 });
 
 app.post('/api/analytics/visit', async (req, res) => {

@@ -15,6 +15,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingError, setShippingError] = useState('');
+  const [shippingQuote, setShippingQuote] = useState<number | null>(null);
+  const [shippingProvider, setShippingProvider] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
   const [errorFields, setErrorFields] = useState<string[]>([]);
   const [formData, setFormData] = useState({
@@ -31,7 +35,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
   });
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shipping = formData.deliveryMethod === 'pickup' ? 0 : (subtotal > 5000 ? 0 : 250);
+  const shipping = formData.deliveryMethod === 'pickup' ? 0 : (shippingQuote ?? 0);
   const total = subtotal + shipping;
 
   // Helper function to parse saved address
@@ -76,7 +80,69 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (formData.deliveryMethod === 'shipping' && ['address', 'city', 'state', 'zip'].includes(e.target.name)) {
+      setShippingQuote(null);
+      setShippingProvider('');
+      setShippingError('');
+    }
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const calculateShippingQuote = async () => {
+    if (formData.deliveryMethod === 'pickup') {
+      setShippingQuote(0);
+      setShippingProvider('Recoger en tienda');
+      setShippingError('');
+      return true;
+    }
+
+    if (!formData.address.trim() || !formData.city.trim() || !formData.state.trim() || !formData.zip.trim()) {
+      setShippingError('Completa dirección, ciudad, estado y código postal para cotizar envío.');
+      return false;
+    }
+
+    setShippingLoading(true);
+    setShippingError('');
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/shipping/quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destination: {
+            name: `${formData.name} ${formData.lastName}`.trim() || 'Cliente',
+            phone: formData.phone || '0000000000',
+            email: formData.email || 'cliente@dhimm.local',
+            street_1: formData.address,
+            city: formData.city,
+            province: formData.state,
+            zip_code: formData.zip,
+            country: 'MX'
+          }
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'No se pudo cotizar el envío');
+      }
+
+      const amount = Number(data?.amount || 0);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error('Skydropx no regresó una tarifa válida.');
+      }
+
+      setShippingQuote(amount);
+      setShippingProvider(data?.provider || 'Skydropx');
+      return true;
+    } catch (error: any) {
+      setShippingQuote(null);
+      setShippingProvider('');
+      setShippingError(error?.message || 'No se pudo calcular el envío.');
+      return false;
+    } finally {
+      setShippingLoading(false);
+    }
   };
 
   const generateOrderId = () => {
@@ -116,6 +182,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
   const handlePayWithMercadoPago = async () => {
     if (!validateStep1()) {
       return;
+    }
+
+    if (formData.deliveryMethod === 'shipping' && shippingQuote === null) {
+      const ok = await calculateShippingQuote();
+      if (!ok) return;
     }
 
     setLoading(true);
@@ -276,7 +347,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
                     </div>
                     <p className="text-xs text-slate-500">Recibe en tu dirección</p>
                     <p className="text-xs font-bold text-slate-600 mt-1">
-                      {subtotal > 5000 ? 'Gratis' : '$250 MXN'}
+                      {shippingQuote !== null ? `$${shippingQuote.toLocaleString('es-MX')} MXN` : 'Cotizar envío'}
                     </p>
                   </div>
                 </div>
@@ -440,6 +511,9 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
                           key={index}
                           type="button"
                           onClick={() => {
+                            setShippingQuote(null);
+                            setShippingProvider('');
+                            setShippingError('');
                             setFormData({
                               ...formData,
                               name: parsedAddr.name,
@@ -503,12 +577,37 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
                 <label className="text-sm font-bold text-slate-700">Código Postal</label>
                 <input type="text" name="zip" value={formData.zip} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20" placeholder="66000" />
               </div>
+
+              <div className="md:col-span-2 flex flex-col md:flex-row md:items-center gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={calculateShippingQuote}
+                  disabled={shippingLoading}
+                  className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {shippingLoading ? 'Cotizando envío...' : 'Calcular envío'}
+                </button>
+                {shippingQuote !== null && (
+                  <p className="text-sm font-bold text-green-700">
+                    Envío: ${shippingQuote.toLocaleString('es-MX')} MXN {shippingProvider ? `(${shippingProvider})` : ''}
+                  </p>
+                )}
+                {shippingError && (
+                  <p className="text-sm font-bold text-red-600">{shippingError}</p>
+                )}
+              </div>
             </div>
           )}
           
           <button 
             onClick={() => {
               if (validateStep1()) {
+                if (formData.deliveryMethod === 'shipping') {
+                  calculateShippingQuote().then((ok) => {
+                    if (ok) setStep(2);
+                  });
+                  return;
+                }
                 setStep(2);
               }
             }} 
@@ -544,7 +643,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, user, onComplete, clearCart }
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Envío</span>
-                <span className="font-bold text-slate-800">{shipping === 0 ? 'Gratis' : `$${shipping}`}</span>
+                <span className="font-bold text-slate-800">{shipping === 0 ? 'Gratis' : `$${shipping.toLocaleString('es-MX')}`}</span>
               </div>
               <div className="border-t border-slate-200 pt-3 flex justify-between">
                 <span className="font-black text-slate-900 text-lg">Total</span>
