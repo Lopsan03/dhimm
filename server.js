@@ -458,6 +458,25 @@ app.post('/api/shipping/quote', async (req, res) => {
       return res.status(400).json({ error: `Missing destination fields: ${missing.join(', ')}` });
     }
 
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const normalizeOptions = (quotationPayload) => {
+      const options = quotationPayload?.rates || quotationPayload?.data?.rates || [];
+      return (Array.isArray(options) ? options : [])
+        .map((option) => {
+          const amount = Number(option?.total ?? option?.amount ?? option?.price ?? option?.cost ?? option?.total_price ?? 0);
+          return {
+            amount,
+            currency: option?.currency_code || option?.currency || 'MXN',
+            provider: option?.provider_display_name || option?.provider_name || option?.provider || option?.carrier || option?.name || 'Skydropx',
+            success: !!option?.success,
+            status: option?.status || null
+          };
+        })
+        .filter((option) => Number.isFinite(option.amount) && option.amount > 0)
+        .sort((a, b) => a.amount - b.amount);
+    };
+
     const payload = {
       quotation: {
         address_from: {
@@ -493,6 +512,49 @@ app.post('/api/shipping/quote', async (req, res) => {
           'Authorization': authHeader
         },
         body: JSON.stringify(payload)
+      });
+
+      const bodyText = await response.text();
+      const bodySnippet = bodyText.slice(0, 300);
+
+      if (!response.ok) {
+        registerAttempt({
+          url,
+          authLabel,
+          status: response.status,
+          ok: false,
+          responseSnippet: bodySnippet
+        });
+        const requestError = new Error(`[${authLabel}] ${response.status} ${response.statusText} - ${bodyText.slice(0, 500)}`);
+        requestError.status = response.status;
+        requestError.url = url;
+        requestError.authLabel = authLabel;
+        throw requestError;
+      }
+
+      registerAttempt({
+        url,
+        authLabel,
+        status: response.status,
+        ok: true,
+        responseSnippet: bodySnippet
+      });
+
+      try {
+        return bodyText ? JSON.parse(bodyText) : {};
+      } catch {
+        return { raw: bodyText };
+      }
+    };
+
+    const tryFetchQuotationById = async (baseUrl, quotationId, authHeader, authLabel) => {
+      const url = `${baseUrl}/api/v1/quotations/${quotationId}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader
+        }
       });
 
       const bodyText = await response.text();
@@ -565,21 +627,46 @@ app.post('/api/shipping/quote', async (req, res) => {
       throw lastError || new Error('Unable to retrieve quotation from Skydropx');
     }
 
-    const options = quotation?.rates || quotation?.data?.rates || [];
-    const normalizedOptions = (Array.isArray(options) ? options : [])
-      .map((option) => {
-        const amount = Number(option?.total || option?.amount || option?.price || option?.cost || option?.total_price || 0);
-        return {
-          amount,
-          currency: option?.currency || option?.currency_code || 'MXN',
-          provider: option?.provider_display_name || option?.provider_name || option?.provider || option?.carrier || option?.name || 'Skydropx'
-        };
-      })
-      .filter((option) => Number.isFinite(option.amount) && option.amount > 0)
-      .sort((a, b) => a.amount - b.amount);
+    let finalQuotation = quotation;
+    let normalizedOptions = normalizeOptions(finalQuotation);
+
+    if (normalizedOptions.length === 0 && finalQuotation?.id && finalQuotation?.is_completed === false) {
+      const pollingRounds = 6;
+      const pollingDelayMs = 1200;
+
+      for (let round = 0; round < pollingRounds; round++) {
+        await wait(pollingDelayMs);
+
+        let polled = null;
+        let pollError = null;
+        for (const baseUrl of baseUrlCandidates) {
+          for (const auth of candidateAuthHeaders) {
+            try {
+              polled = await tryFetchQuotationById(baseUrl, finalQuotation.id, auth.value, auth.label);
+              if (polled) break;
+            } catch (error) {
+              pollError = error;
+            }
+          }
+          if (polled) break;
+        }
+
+        if (!polled && pollError) {
+          lastError = pollError;
+          continue;
+        }
+
+        if (polled) {
+          finalQuotation = polled;
+          normalizedOptions = normalizeOptions(finalQuotation);
+          if (normalizedOptions.length > 0) break;
+          if (finalQuotation?.is_completed === true) break;
+        }
+      }
+    }
 
     if (normalizedOptions.length === 0) {
-      return res.status(422).json({ error: 'No shipping options returned by Skydropx', raw: quotation });
+      return res.status(422).json({ error: 'No shipping options returned by Skydropx', raw: finalQuotation });
     }
 
     const selected = normalizedOptions[0];
