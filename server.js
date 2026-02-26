@@ -41,7 +41,8 @@ const normalizeBaseUrl = (value) => {
 
 // Skydropx shipping quotation configuration
 const SKYDROPX_API_KEY = sanitizeEnvValue(process.env.SKYDROPX_API_KEY);
-const SKYDROPX_API_BASE_URL = normalizeBaseUrl(process.env.SKYDROPX_API_BASE_URL) || 'https://api.skydropx.com';
+const SKYDROPX_BEARER_TOKEN = sanitizeEnvValue(process.env.SKYDROPX_BEARER_TOKEN) || SKYDROPX_API_KEY;
+const SKYDROPX_API_BASE_URL = normalizeBaseUrl(process.env.SKYDROPX_API_BASE_URL) || 'https://pro.skydropx.com';
 const SKYDROPX_DEBUG = process.env.SKYDROPX_DEBUG === 'true';
 const SKYDROPX_ORIGIN = {
   company: process.env.SKYDROPX_ORIGIN_COMPANY || 'Dhimma Automotriz',
@@ -446,8 +447,8 @@ app.post('/api/shipping/quote', async (req, res) => {
   };
 
   try {
-    if (!SKYDROPX_API_KEY) {
-      return res.status(503).json({ error: 'SKYDROPX_API_KEY is not configured on backend' });
+    if (!SKYDROPX_BEARER_TOKEN) {
+      return res.status(503).json({ error: 'SKYDROPX_BEARER_TOKEN (or SKYDROPX_API_KEY fallback) is not configured on backend' });
     }
 
     const destination = req.body?.destination || {};
@@ -458,23 +459,29 @@ app.post('/api/shipping/quote', async (req, res) => {
     }
 
     const payload = {
-      address_from: SKYDROPX_ORIGIN,
-      address_to: {
-        company: destination.company || destination.name || 'Cliente',
-        name: destination.name || 'Cliente',
-        phone: destination.phone || '0000000000',
-        email: destination.email || 'cliente@dhimm.local',
-        street_1: destination.street_1,
-        city: destination.city,
-        province: destination.province,
-        zip_code: destination.zip_code,
-        country: destination.country
-      },
-      parcel: {
-        weight: 5,
-        length: 40,
-        width: 30,
-        height: 20
+      quotation: {
+        address_from: {
+          country_code: SKYDROPX_ORIGIN.country || 'MX',
+          postal_code: SKYDROPX_ORIGIN.zip_code,
+          area_level1: SKYDROPX_ORIGIN.province,
+          area_level2: SKYDROPX_ORIGIN.city,
+          area_level3: SKYDROPX_ORIGIN.street_1
+        },
+        address_to: {
+          country_code: destination.country || 'MX',
+          postal_code: destination.zip_code,
+          area_level1: destination.province,
+          area_level2: destination.city,
+          area_level3: destination.street_1
+        },
+        parcels: [
+          {
+            weight: 5,
+            length: 40,
+            width: 30,
+            height: 20
+          }
+        ]
       }
     };
 
@@ -523,16 +530,12 @@ app.post('/api/shipping/quote', async (req, res) => {
 
     const baseUrlCandidates = Array.from(new Set([
       SKYDROPX_API_BASE_URL,
-      'https://api.skydropx.com'
+      'https://pro.skydropx.com'
     ].map(normalizeBaseUrl).filter(Boolean)));
 
-    const candidateUrls = baseUrlCandidates.flatMap((baseUrl) => ([
-      `${baseUrl}/v1/quotations`,
-      `${baseUrl}/api/v1/quotations`
-    ]));
+    const candidateUrls = baseUrlCandidates.map((baseUrl) => `${baseUrl}/api/v1/quotations`);
     const candidateAuthHeaders = [
-      { value: `Bearer ${SKYDROPX_API_KEY}`, label: 'Bearer' },
-      { value: `Token token=${SKYDROPX_API_KEY}`, label: 'Token' }
+      { value: `Bearer ${SKYDROPX_BEARER_TOKEN}`, label: 'Bearer' }
     ];
 
     let quotation = null;
@@ -551,7 +554,7 @@ app.post('/api/shipping/quote', async (req, res) => {
     }
 
     const hasPrimaryAuthFailure = debugAttempts.some(
-      (attempt) => attempt.status === 401 && typeof attempt.url === 'string' && attempt.url.endsWith('/v1/quotations')
+      (attempt) => attempt.status === 401 && typeof attempt.url === 'string' && attempt.url.endsWith('/api/v1/quotations')
     );
 
     if (!quotation && hasPrimaryAuthFailure) {
@@ -562,14 +565,14 @@ app.post('/api/shipping/quote', async (req, res) => {
       throw lastError || new Error('Unable to retrieve quotation from Skydropx');
     }
 
-    const options = quotation?.data || quotation?.quotations || quotation?.rates || quotation?.shipping_rates || [];
+    const options = quotation?.rates || quotation?.data?.rates || [];
     const normalizedOptions = (Array.isArray(options) ? options : [])
       .map((option) => {
         const amount = Number(option?.total || option?.amount || option?.price || option?.cost || option?.total_price || 0);
         return {
           amount,
           currency: option?.currency || option?.currency_code || 'MXN',
-          provider: option?.provider || option?.carrier || option?.name || 'Skydropx'
+          provider: option?.provider_display_name || option?.provider_name || option?.provider || option?.carrier || option?.name || 'Skydropx'
         };
       })
       .filter((option) => Number.isFinite(option.amount) && option.amount > 0)
