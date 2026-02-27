@@ -5,7 +5,7 @@ export const COMPANY_INFO = {
   name: "Dhimma Automotriz",
   description: "Somos una empresa especializada en la venta de cajas de dirección electrónicas y bombas electrónicas. Manejamos todas las marcas y modelos.",
   category: "Automotive Wholesaler",
-  address: "AV DE LA JUVENTUD #590, San Nicolás de los Garza, Mexico",
+  address: "av de la juventud #590, san nicolás de los garza, mexico",
   phone: "81 3273 2525",
   email: "ventas_duar@hotmail.com",
   whatsapp: "https://wa.me/528132732525"
