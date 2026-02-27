@@ -30,7 +30,7 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart }) => {
               Expertos en <span className="text-blue-500">Dirección Electrónica</span>
             </h1>
             <p className="text-lg text-slate-300 mb-8 leading-relaxed">
-              Venta de cajas de dirección y bombas hidráulicas para todas las marcas. Calidad garantizada en cada pieza.
+              Venta de cajas de dirección y bombas electrónicas para todas las marcas. Calidad garantizada en cada pieza.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link 
@@ -119,7 +119,7 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart }) => {
               <div className="absolute -top-6 -left-6 w-32 h-32 bg-blue-600 rounded-[2.5rem] -z-10 opacity-5"></div>
               <img 
                 src={specialistImg} 
-                alt="Expertos en soluciones de dirección automotriz" 
+                alt="Expertos en soluciones de dirección electrónica" 
                 className="rounded-[3rem] shadow-2xl object-cover aspect-video lg:aspect-square border-8 border-white"
               />
               <div className="absolute -bottom-8 -right-8 bg-slate-900 p-10 rounded-[2.5rem] text-white shadow-2xl hidden md:block border-4 border-white">
@@ -131,9 +131,9 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart }) => {
               <div className="inline-block px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-6">
                 Liderazgo Automotriz
               </div>
-              <h3 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 leading-tight tracking-tighter">Expertos en soluciones de dirección automotriz</h3>
+              <h3 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 leading-tight tracking-tighter">Expertos en soluciones de dirección electrónica</h3>
               <p className="text-slate-600 text-lg mb-8 leading-relaxed font-medium">
-                En <strong>Dhimma Automotriz</strong>, nos dedicamos apasionadamente a mantener la precisión y suavidad en el manejo de tu vehículo. Somos especialistas certificados en la reconstrucción y venta de sistemas de dirección hidráulica y electrónica de última generación.
+                En <strong>Dhimma Automotriz</strong>, nos dedicamos apasionadamente a mantener la precisión y suavidad en el manejo de tu vehículo. Somos especialistas certificados en la reconstrucción y venta de sistemas de dirección electrónica de última generación.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                 <div className="flex items-center gap-4">
@@ -142,7 +142,7 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart }) => {
                 </div>
                 <div className="flex items-center gap-4">
                    <div className="w-10 h-10 bg-white shadow-sm text-blue-600 rounded-xl flex items-center justify-center text-xs flex-shrink-0"><i className="fas fa-oil-can"></i></div>
-                   <p className="text-sm font-bold text-slate-700">Sistemas Hidráulicos</p>
+                   <p className="text-sm font-bold text-slate-700">Sistemas Electrónicos</p>
                 </div>
                 <div className="flex items-center gap-4">
                    <div className="w-10 h-10 bg-white shadow-sm text-blue-600 rounded-xl flex items-center justify-center text-xs flex-shrink-0"><i className="fas fa-tools"></i></div>

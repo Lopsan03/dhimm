@@ -3,7 +3,7 @@ import { Product, Order } from './types';
 
 export const COMPANY_INFO = {
   name: "Dhimma Automotriz",
-  description: "Somos una empresa especializada en la venta de cajas de dirección hidráulicas, electrónicas y bombas hidráulicas. Manejamos todas las marcas y modelos.",
+  description: "Somos una empresa especializada en la venta de cajas de dirección electrónicas y bombas electrónicas. Manejamos todas las marcas y modelos.",
   category: "Automotive Wholesaler",
   address: "AV DE LA JUVENTUD #590, San Nicolás de los Garza, Mexico",
   phone: "81 3273 2525",
@@ -14,19 +14,19 @@ export const COMPANY_INFO = {
 export const MOCK_PRODUCTS: Product[] = [
   {
     id: '1',
-    name: 'Caja de Dirección Hidráulica Nissan Tsuru III',
-    category: 'Caja de Dirección Hidráulica',
+    name: 'Caja de Dirección Electrónica Nissan Tsuru III',
+    category: 'Caja de Dirección Electrónica',
     brand: 'Nissan',
     compatibleModels: ['Tsuru III 1992-2017'],
     price: 3450,
     stock: 12,
     image: 'https://picsum.photos/seed/nissan1/400/300',
-    description: 'Caja de dirección hidráulica reconstruida con componentes originales para máxima durabilidad.'
+    description: 'Caja de dirección electrónica reconstruida con componentes originales para máxima durabilidad.'
   },
   {
     id: '2',
-    name: 'Bomba Hidráulica Toyota Hilux',
-    category: 'Bomba Hidráulica',
+    name: 'Bomba Electrónica Toyota Hilux',
+    category: 'Bomba Electrónica',
     brand: 'Toyota',
     compatibleModels: ['Hilux 2005-2015'],
     price: 2100,
@@ -47,8 +47,8 @@ export const MOCK_PRODUCTS: Product[] = [
   },
   {
     id: '4',
-    name: 'Caja de Dirección Hidráulica VW Jetta A4',
-    category: 'Caja de Dirección Hidráulica',
+    name: 'Caja de Dirección Electrónica VW Jetta A4',
+    category: 'Caja de Dirección Electrónica',
     brand: 'Volkswagen',
     compatibleModels: ['Jetta A4', 'Golf A4', 'Beetle'],
     price: 3150,
@@ -58,25 +58,25 @@ export const MOCK_PRODUCTS: Product[] = [
   },
   {
     id: '5',
-    name: 'Bomba Hidráulica Honda CR-V',
-    category: 'Bomba Hidráulica',
+    name: 'Bomba Electrónica Honda CR-V',
+    category: 'Bomba Electrónica',
     brand: 'Honda',
     compatibleModels: ['CR-V 2007-2011'],
     price: 2400,
     stock: 15,
     image: 'https://picsum.photos/seed/honda1/400/300',
-    description: 'Bomba hidráulica original remanufacturada con sellos nuevos de alta resistencia.'
+    description: 'Bomba electrónica original remanufacturada con sellos nuevos de alta resistencia.'
   },
   {
     id: '6',
-    name: 'Caja de Dirección Hidráulica Chevrolet Aveo',
-    category: 'Caja de Dirección Hidráulica',
+    name: 'Caja de Dirección Electrónica Chevrolet Aveo',
+    category: 'Caja de Dirección Electrónica',
     brand: 'Chevrolet',
     compatibleModels: ['Aveo 2008-2017'],
     price: 2850,
     stock: 10,
     image: 'https://picsum.photos/seed/chev1/400/300',
-    description: 'Dirección hidráulica reforzada para Aveo. Incluye terminales.'
+    description: 'Dirección electrónica reforzada para Aveo. Incluye terminales.'
   }
 ];
 

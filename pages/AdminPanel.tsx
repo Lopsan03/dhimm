@@ -15,9 +15,8 @@ interface AdminPanelProps {
 }
 
 const PRODUCT_CATEGORIES: Product['category'][] = [
-  'Caja de Dirección Hidráulica',
   'Caja de Dirección Electrónica',
-  'Bomba Hidráulica',
+  'Bomba Electrónica',
   'Transmisión',
   'Motor',
   'Diferencial',
@@ -27,7 +26,7 @@ const PRODUCT_CATEGORIES: Product['category'][] = [
 ];
 
 const MEXICO_BRANDS = [
-  '', 'Abarth', 'Acura', 'Alfa Romeo', 'Audi', 'BMW', 'Buick', 'BYD', 'Cadillac', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Citroën', 'Cupra', 'Dodge', 'Fiat', 'Ford', 'Geely', 'GMC', 'Great Wall', 'Haval', 'Honda', 'Hyundai', 'Infiniti', 'Isuzu', 'JAC', 'Jaguar', 'Jeep', 'Jetour', 'Kia', 'Land Rover', 'Lexus', 'Lincoln', 'Mazda', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 'Ram', 'Renault', 'SEAT', 'Skoda', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo', 'FAW', 'Foton', 'Kaiyi'
+  '', 'Acura', 'Alfa Romeo', 'Audi', 'BMW', 'Buick', 'BYD', 'Cadillac', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Cupra', 'Dodge', 'Fiat', 'Ford', 'Geely', 'GMC', 'Great Wall', 'Haval', 'Honda', 'Hyundai', 'Infiniti', 'Isuzu', 'JAC', 'Jaguar', 'Jeep', 'Jetour', 'Kia', 'Land Rover', 'Lexus', 'Lincoln', 'Mazda', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 'Ram', 'Renault', 'SEAT', 'Skoda', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo', 'Foton'
 ];
 
 type AnalyticsGranularity = 'day' | 'week' | 'month';
@@ -196,7 +195,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
     price: 0,
     stock: 0,
     description: '',
-    category: 'Caja de Dirección Hidráulica' as const,
+    category: 'Caja de Dirección Electrónica' as const,
     brand: '',
     compatibleModels: '' as any
   });
@@ -205,7 +204,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
     price: 0,
     stock: 0,
     description: '',
-    category: 'Caja de Dirección Hidráulica' as const,
+    category: 'Caja de Dirección Electrónica' as const,
     brand: '',
     compatibleModels: '' as any
   });
@@ -328,7 +327,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       price: 0,
       stock: 0,
       description: '',
-      category: 'Caja de Dirección Hidráulica' as const,
+      category: 'Caja de Dirección Electrónica' as const,
       brand: '',
       compatibleModels: '' as any
     });
@@ -341,7 +340,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       price: 0,
       stock: 0,
       description: '',
-      category: 'Caja de Dirección Hidráulica' as const,
+      category: 'Caja de Dirección Electrónica' as const,
       brand: '',
       compatibleModels: '' as any
     });
