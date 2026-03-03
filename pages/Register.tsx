@@ -14,6 +14,15 @@ const Register: React.FC<RegisterProps> = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        setTimeout(() => reject(new Error(message)), ms);
+      })
+    ]);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -26,7 +35,7 @@ const Register: React.FC<RegisterProps> = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const signUpPromise = supabase.auth.signUp({
         email: formData.email,
         password: formData.pass,
         options: {
@@ -36,6 +45,29 @@ const Register: React.FC<RegisterProps> = ({ onLogin }) => {
           }
         }
       });
+
+      const authEventPromise = new Promise<{ data: any; error: any }>((resolve, reject) => {
+        let timeoutId: ReturnType<typeof setTimeout>;
+
+        const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            clearTimeout(timeoutId);
+            listener?.subscription.unsubscribe();
+            resolve({ data: { user: session.user }, error: null });
+          }
+        });
+
+        timeoutId = setTimeout(() => {
+          listener?.subscription.unsubscribe();
+          reject(new Error('Timeout en registro (evento de autenticación)'));
+        }, 10000);
+      });
+
+      const { data, error } = await withTimeout(
+        Promise.race([signUpPromise, authEventPromise]),
+        15000,
+        'Timeout al registrar usuario'
+      );
 
       if (error) throw error;
       const authUser = data.user;
@@ -49,11 +81,47 @@ const Register: React.FC<RegisterProps> = ({ onLogin }) => {
         addresses: []
       };
 
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({ id: profile.id, name: profile.name, email: profile.email, role: profile.role, addresses: profile.addresses });
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
-      if (profileError) throw profileError;
+      let profileSaved = false;
+      try {
+        const profileResp = await withTimeout(
+          fetch(`${backendUrl}/api/user-profile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(profile)
+          }),
+          10000,
+          'Timeout guardando perfil en backend'
+        );
+
+        if (!profileResp.ok) {
+          const text = await profileResp.text();
+          throw new Error(text || `HTTP ${profileResp.status}`);
+        }
+
+        profileSaved = true;
+      } catch (backendProfileErr: any) {
+        console.warn('[register] backend profile upsert failed, trying direct supabase:', backendProfileErr?.message);
+      }
+
+      if (!profileSaved) {
+        try {
+          const { error: profileError } = await withTimeout(
+            supabase
+              .from('profiles')
+              .upsert({ id: profile.id, name: profile.name, email: profile.email, role: profile.role, addresses: profile.addresses }),
+            10000,
+            'Timeout guardando perfil'
+          );
+
+          if (profileError) {
+            console.warn('[register] direct profile upsert failed, continuing with local profile:', profileError.message);
+          }
+        } catch (directProfileErr: any) {
+          console.warn('[register] direct profile upsert timeout/error, continuing with local profile:', directProfileErr?.message);
+        }
+      }
 
       localStorage.setItem('dhimma_user', JSON.stringify(profile));
       onLogin(profile);

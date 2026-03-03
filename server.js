@@ -1622,6 +1622,52 @@ app.get('/api/user-profile/:userId', async (req, res) => {
   }
 });
 
+// Create or update user profile
+app.post('/api/user-profile', async (req, res) => {
+  try {
+    const { id, name, email, role, addresses } = req.body || {};
+
+    if (!supabaseAdmin) {
+      return res.status(503).json({
+        error: 'Profile writes require MP_WEBHOOK_SERVICE_ROLE_KEY on backend'
+      });
+    }
+
+    if (!id || !isUuid(id)) {
+      return res.status(400).json({ error: 'Invalid or missing id' });
+    }
+
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Missing required fields: name, email' });
+    }
+
+    const safeRole = role === 'admin' ? 'admin' : 'user';
+    const safeAddresses = Array.isArray(addresses) ? addresses : [];
+
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id,
+        name,
+        email,
+        role: safeRole,
+        addresses: safeAddresses
+      })
+      .select('id, name, email, role, addresses')
+      .single();
+
+    if (error) {
+      console.error('Error upserting user profile:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error('Exception upserting user profile:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Update user addresses
 app.put('/api/user-addresses/:userId', async (req, res) => {
   try {

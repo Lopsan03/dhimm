@@ -64,10 +64,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       const authUser = data.user;
       let profileData: any = null;
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
       // Fetch profile through backend API (bypasses RLS issues)
       try {
-        const profileResponse = await fetch(`http://localhost:3001/api/user-profile/${authUser.id}`);
+        const profileResponse = await fetch(`${backendUrl}/api/user-profile/${authUser.id}`);
         if (profileResponse.ok) {
           profileData = await profileResponse.json();
         }
