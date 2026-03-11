@@ -527,6 +527,18 @@ app.post('/api/shipping/quote', async (req, res) => {
   const debugId = `ship_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const debugEnabled = SKYDROPX_DEBUG || req.query?.debug === '1';
   const debugAttempts = [];
+  const tokenFingerprint = SKYDROPX_RAW_TOKEN
+    ? {
+        length: SKYDROPX_RAW_TOKEN.length,
+        prefix: SKYDROPX_RAW_TOKEN.slice(0, 4),
+        suffix: SKYDROPX_RAW_TOKEN.slice(-4)
+      }
+    : null;
+  const baseUrlCandidates = Array.from(new Set([
+    SKYDROPX_API_BASE_URL,
+    'https://pro.skydropx.com',
+    'https://api.skydropx.com'
+  ].map(normalizeBaseUrl).filter(Boolean)));
 
   const registerAttempt = ({ url, authLabel, status, ok, responseSnippet, error }) => {
     debugAttempts.push({
@@ -641,14 +653,6 @@ app.post('/api/shipping/quote', async (req, res) => {
       }
     };
 
-      const tokenFingerprint = SKYDROPX_RAW_TOKEN
-        ? {
-            length: SKYDROPX_RAW_TOKEN.length,
-            prefix: SKYDROPX_RAW_TOKEN.slice(0, 4),
-            suffix: SKYDROPX_RAW_TOKEN.slice(-4)
-          }
-        : null;
-
     const tryFetchQuotationById = async (baseUrl, quotationId, authCandidate) => {
       const authLabel = authCandidate?.label || 'unknown-auth';
       const url = `${baseUrl}/api/v1/quotations/${quotationId}`;
@@ -692,12 +696,6 @@ app.post('/api/shipping/quote', async (req, res) => {
         return { raw: bodyText };
       }
     };
-
-    const baseUrlCandidates = Array.from(new Set([
-      SKYDROPX_API_BASE_URL,
-      'https://pro.skydropx.com',
-      'https://api.skydropx.com'
-    ].map(normalizeBaseUrl).filter(Boolean)));
 
     const candidateUrls = baseUrlCandidates.map((baseUrl) => `${baseUrl}/api/v1/quotations`);
     const candidateAuthHeaders = buildSkydropxAuthCandidates(SKYDROPX_RAW_TOKEN);
