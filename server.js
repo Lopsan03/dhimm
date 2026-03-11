@@ -1076,26 +1076,35 @@ app.put('/api/products/:id', async (req, res) => {
   }
   const { id } = req.params;
   const payload = req.body || {};
+  const updatePayload = {
+    name: payload.name,
+    category: payload.category,
+    brand: payload.brand,
+    compatible_models: payload.compatibleModels,
+    price: payload.price,
+    stock: payload.stock,
+    image: payload.image,
+    description: payload.description,
+    updated_by_admin_id: payload.updated_by_admin_id || null
+  };
+
+  // Backward-compatible: only persist estado when explicitly provided and column still exists.
+  if (typeof payload.estado !== 'undefined') {
+    updatePayload.estado = payload.estado;
+  }
+
   try {
     const { error } = await supabaseAdmin
       .from('products')
-      .update({
-        name: payload.name,
-        category: payload.category,
-        brand: payload.brand,
-        compatible_models: payload.compatibleModels,
-        price: payload.price,
-        stock: payload.stock,
-        image: payload.image,
-        description: payload.description,
-        estado: payload.estado,
-        updated_by_admin_id: payload.updated_by_admin_id || null
-      })
+      .update(updatePayload)
       .eq('id', id);
 
     if (error) {
       console.error('Error updating product:', error.message);
-      return res.status(500).json({ error: 'Failed to update product' });
+      return res.status(500).json({
+        error: 'Failed to update product',
+        details: error.message
+      });
     }
 
     console.log(`[products] updated id=${id}`);
@@ -1112,27 +1121,36 @@ app.post('/api/products', async (req, res) => {
     return res.status(403).json({ error: 'Service role key required for product creation' });
   }
   const payload = req.body || {};
+  const insertPayload = {
+    name: payload.name,
+    category: payload.category,
+    brand: payload.brand,
+    compatible_models: payload.compatibleModels || [],
+    price: payload.price,
+    stock: payload.stock,
+    image: payload.image,
+    description: payload.description,
+    updated_by_admin_id: payload.updated_by_admin_id || null
+  };
+
+  // Backward-compatible: only persist estado when explicitly provided and column still exists.
+  if (typeof payload.estado !== 'undefined') {
+    insertPayload.estado = payload.estado;
+  }
+
   try {
     const { data, error } = await supabaseAdmin
       .from('products')
-      .insert({
-        name: payload.name,
-        category: payload.category,
-        brand: payload.brand,
-        compatible_models: payload.compatibleModels || [],
-        price: payload.price,
-        stock: payload.stock,
-        image: payload.image,
-        description: payload.description,
-        estado: payload.estado,
-        updated_by_admin_id: payload.updated_by_admin_id || null
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
     if (error) {
       console.error('Error creating product:', error.message);
-      return res.status(500).json({ error: 'Failed to create product' });
+      return res.status(500).json({
+        error: 'Failed to create product',
+        details: error.message
+      });
     }
 
     console.log(`[products] created id=${data?.id}`);
