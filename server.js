@@ -41,34 +41,9 @@ const normalizeBaseUrl = (value) => {
 
 // Skydropx shipping quotation configuration
 const SKYDROPX_API_KEY = sanitizeEnvValue(process.env.SKYDROPX_API_KEY);
-const SKYDROPX_BEARER_TOKEN = sanitizeEnvValue(process.env.SKYDROPX_BEARER_TOKEN) || SKYDROPX_API_KEY;
-const SKYDROPX_CLIENT_ID = sanitizeEnvValue(process.env.SKYDROPX_CLIENT_ID || process.env.SKYDROPX_OAUTH_CLIENT_ID);
-const SKYDROPX_CLIENT_SECRET = sanitizeEnvValue(process.env.SKYDROPX_CLIENT_SECRET || process.env.SKYDROPX_OAUTH_CLIENT_SECRET);
-const SKYDROPX_OAUTH_URL = normalizeBaseUrl(process.env.SKYDROPX_OAUTH_URL) || 'https://app.skydropx.com';
-const SKYDROPX_RAW_TOKEN = sanitizeEnvValue(SKYDROPX_BEARER_TOKEN || '')
-  .replace(/^bearer\s+/i, '')
-  .replace(/^token\s+/i, '')
-  .replace(/^token=/i, '')
-  .trim();
+const SKYDROPX_BEARER_TOKEN = sanitizeEnvValue(process.env.SKYDROPX_BEARER_TOKEN);
 const SKYDROPX_API_BASE_URL = normalizeBaseUrl(process.env.SKYDROPX_API_BASE_URL) || 'https://pro.skydropx.com';
 const SKYDROPX_DEBUG = process.env.SKYDROPX_DEBUG === 'true';
-const SKYDROPX_TOKEN_FINGERPRINT = SKYDROPX_RAW_TOKEN
-  ? {
-      length: SKYDROPX_RAW_TOKEN.length,
-      prefix: SKYDROPX_RAW_TOKEN.slice(0, 4),
-      suffix: SKYDROPX_RAW_TOKEN.slice(-4)
-    }
-  : null;
-
-console.log('[skydropx] config', {
-  baseUrl: SKYDROPX_API_BASE_URL,
-  oauthUrl: SKYDROPX_OAUTH_URL,
-  hasApiKey: Boolean(SKYDROPX_API_KEY),
-  hasBearerToken: Boolean(process.env.SKYDROPX_BEARER_TOKEN),
-  hasClientId: Boolean(SKYDROPX_CLIENT_ID),
-  hasClientSecret: Boolean(SKYDROPX_CLIENT_SECRET),
-  tokenFingerprint: SKYDROPX_TOKEN_FINGERPRINT
-});
 const SKYDROPX_ORIGIN = {
   company: process.env.SKYDROPX_ORIGIN_COMPANY || 'Dhimma Automotriz',
   name: process.env.SKYDROPX_ORIGIN_NAME || 'Dhimma',
@@ -442,149 +417,6 @@ const addUtcMonths = (value, months) => {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
 };
 
-const buildSkydropxAuthCandidates = (rawToken) => {
-  if (!rawToken) return [];
-  return [
-    {
-      label: 'Authorization: raw',
-      headers: { Authorization: rawToken }
-    },
-    {
-      label: 'Authorization: Bearer',
-      headers: { Authorization: `Bearer ${rawToken}` }
-    },
-    {
-      label: 'Authorization: Token token=',
-      headers: { Authorization: `Token token=${rawToken}` }
-    },
-    {
-      label: 'Authorization: Token',
-      headers: { Authorization: `Token ${rawToken}` }
-    },
-    {
-      label: 'X-API-KEY',
-      headers: { 'X-API-KEY': rawToken }
-    },
-    {
-      label: 'x-api-key',
-      headers: { 'x-api-key': rawToken }
-    }
-  ];
-};
-
-let skydropxOAuthCache = {
-  accessToken: null,
-  expiresAt: 0
-};
-
-const buildSkydropxOauthEndpointCandidates = () => {
-  const bases = Array.from(new Set([
-    SKYDROPX_OAUTH_URL,
-    'https://app.skydropx.com',
-    'https://pro.skydropx.com'
-  ].map(normalizeBaseUrl).filter(Boolean)));
-
-  const paths = ['/api/v1/oauth/token', '/oauth/token'];
-  const urls = [];
-  for (const base of bases) {
-    for (const p of paths) {
-      urls.push(`${base}${p}`);
-    }
-  }
-  return Array.from(new Set(urls));
-};
-
-const getSkydropxOauthToken = async () => {
-  if (!SKYDROPX_CLIENT_ID || !SKYDROPX_CLIENT_SECRET) {
-    return { accessToken: null, attempts: [], lastError: 'Missing SKYDROPX_CLIENT_ID / SKYDROPX_CLIENT_SECRET' };
-  }
-
-  const now = Date.now();
-  if (skydropxOAuthCache.accessToken && skydropxOAuthCache.expiresAt > now + 30000) {
-    return { accessToken: skydropxOAuthCache.accessToken, attempts: [{ source: 'cache', ok: true }], lastError: null };
-  }
-
-  const tokenUrls = buildSkydropxOauthEndpointCandidates();
-  const requestVariants = [
-    {
-      label: 'oauth-json',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'client_credentials',
-        client_id: SKYDROPX_CLIENT_ID,
-        client_secret: SKYDROPX_CLIENT_SECRET
-      })
-    },
-    {
-      label: 'oauth-form',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: SKYDROPX_CLIENT_ID,
-        client_secret: SKYDROPX_CLIENT_SECRET
-      }).toString()
-    },
-    {
-      label: 'oauth-json-with-bearer',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(SKYDROPX_RAW_TOKEN ? { Authorization: `Bearer ${SKYDROPX_RAW_TOKEN}` } : {})
-      },
-      body: JSON.stringify({
-        grant_type: 'client_credentials',
-        client_id: SKYDROPX_CLIENT_ID,
-        client_secret: SKYDROPX_CLIENT_SECRET
-      })
-    }
-  ];
-
-  let lastOauthError = null;
-  const oauthAttempts = [];
-
-  for (const tokenUrl of tokenUrls) {
-    for (const variant of requestVariants) {
-      const response = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: variant.headers,
-        body: variant.body
-      });
-
-      const bodyText = await response.text();
-      let data = {};
-      try {
-        data = bodyText ? JSON.parse(bodyText) : {};
-      } catch {
-        data = { raw: bodyText };
-      }
-
-      if (response.ok && data?.access_token) {
-        const expiresIn = Number(data.expires_in || 3600);
-        skydropxOAuthCache = {
-          accessToken: data.access_token,
-          expiresAt: now + Math.max(60, expiresIn) * 1000
-        };
-        oauthAttempts.push({ tokenUrl, variant: variant.label, status: response.status, ok: true });
-        return { accessToken: data.access_token, attempts: oauthAttempts, lastError: null };
-      }
-
-      const message = data?.error_description || data?.error || `OAuth token request failed (${response.status})`;
-      lastOauthError = `Skydropx OAuth error [${variant.label}] @ ${tokenUrl}: ${message}`;
-      oauthAttempts.push({
-        tokenUrl,
-        variant: variant.label,
-        status: response.status,
-        ok: false,
-        responseSnippet: bodyText.slice(0, 200)
-      });
-    }
-  }
-
-  if (lastOauthError) {
-    return { accessToken: null, attempts: oauthAttempts, lastError: lastOauthError };
-  }
-  return { accessToken: null, attempts: oauthAttempts, lastError: 'Skydropx OAuth error: unknown token request failure' };
-};
-
 const buildAnalyticsRange = (granularity, offset) => {
   const safeOffset = Number.isFinite(offset) && offset > 0 ? Math.floor(offset) : 0;
   const now = new Date();
@@ -646,22 +478,7 @@ app.post('/api/shipping/quote', async (req, res) => {
   const debugId = `ship_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const debugEnabled = SKYDROPX_DEBUG || req.query?.debug === '1';
   const debugAttempts = [];
-  let oauthAttempted = false;
-  let oauthSucceeded = false;
-  let oauthError = null;
-  let oauthAttemptsDebug = [];
-  const tokenFingerprint = SKYDROPX_RAW_TOKEN
-    ? {
-        length: SKYDROPX_RAW_TOKEN.length,
-        prefix: SKYDROPX_RAW_TOKEN.slice(0, 4),
-        suffix: SKYDROPX_RAW_TOKEN.slice(-4)
-      }
-    : null;
-  const baseUrlCandidates = Array.from(new Set([
-    SKYDROPX_API_BASE_URL,
-    'https://pro.skydropx.com',
-    'https://api.skydropx.com'
-  ].map(normalizeBaseUrl).filter(Boolean)));
+  let candidateAuthHeaders = [];
 
   const registerAttempt = ({ url, authLabel, status, ok, responseSnippet, error }) => {
     debugAttempts.push({
@@ -675,8 +492,8 @@ app.post('/api/shipping/quote', async (req, res) => {
   };
 
   try {
-    if (!SKYDROPX_RAW_TOKEN && !(SKYDROPX_CLIENT_ID && SKYDROPX_CLIENT_SECRET)) {
-      return res.status(503).json({ error: 'No Skydropx auth configured. Set SKYDROPX_API_KEY or SKYDROPX_CLIENT_ID + SKYDROPX_CLIENT_SECRET.' });
+    if (!SKYDROPX_BEARER_TOKEN && !SKYDROPX_API_KEY) {
+      return res.status(503).json({ error: 'Skydropx credentials missing. Configure SKYDROPX_BEARER_TOKEN or SKYDROPX_API_KEY on backend' });
     }
 
     const destination = req.body?.destination || {};
@@ -732,13 +549,12 @@ app.post('/api/shipping/quote', async (req, res) => {
       }
     };
 
-    const tryRequest = async (url, authCandidate) => {
-      const authLabel = authCandidate?.label || 'unknown-auth';
+    const tryRequest = async (url, authHeader, authLabel) => {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(authCandidate?.headers || {})
+          'Authorization': authHeader
         },
         body: JSON.stringify(payload)
       });
@@ -776,14 +592,13 @@ app.post('/api/shipping/quote', async (req, res) => {
       }
     };
 
-    const tryFetchQuotationById = async (baseUrl, quotationId, authCandidate) => {
-      const authLabel = authCandidate?.label || 'unknown-auth';
-      const url = `${baseUrl}/api/v1/quotations/${quotationId}`;
+    const tryFetchQuotationById = async (quotationEndpointUrl, quotationId, authHeader, authLabel) => {
+      const url = `${quotationEndpointUrl}/${quotationId}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          ...(authCandidate?.headers || {})
+          'Authorization': authHeader
         }
       });
 
@@ -820,66 +635,46 @@ app.post('/api/shipping/quote', async (req, res) => {
       }
     };
 
-    const candidateUrls = baseUrlCandidates.map((baseUrl) => `${baseUrl}/api/v1/quotations`);
-    const candidateAuthHeaders = buildSkydropxAuthCandidates(SKYDROPX_RAW_TOKEN);
-    let activeAuthHeaders = candidateAuthHeaders;
+    const baseUrlCandidates = Array.from(new Set([
+      SKYDROPX_API_BASE_URL,
+      'https://pro.skydropx.com',
+      'https://api.skydropx.com'
+    ].map(normalizeBaseUrl).filter(Boolean)));
+
+    const quotationPathCandidates = ['/api/v1/quotations', '/v1/quotations'];
+    const candidateUrls = baseUrlCandidates.flatMap((baseUrl) => quotationPathCandidates.map((quotationPath) => `${baseUrl}${quotationPath}`));
+
+    candidateAuthHeaders = [];
+    if (SKYDROPX_BEARER_TOKEN) {
+      candidateAuthHeaders.push({ value: `Bearer ${SKYDROPX_BEARER_TOKEN}`, label: 'Bearer token' });
+    }
+    if (SKYDROPX_API_KEY) {
+      candidateAuthHeaders.push({ value: `Token token=${SKYDROPX_API_KEY}`, label: 'API key token' });
+      // Compatibility fallback for some tenant setups that still expect Bearer with API key value.
+      candidateAuthHeaders.push({ value: `Bearer ${SKYDROPX_API_KEY}`, label: 'Bearer API key fallback' });
+    }
 
     let quotation = null;
     let lastError = null;
 
-    if (candidateAuthHeaders.length > 0) {
-      for (const url of candidateUrls) {
-        for (const auth of candidateAuthHeaders) {
-          try {
-            quotation = await tryRequest(url, auth);
-            if (quotation) break;
-          } catch (error) {
-            lastError = error;
-          }
+    for (const url of candidateUrls) {
+      for (const auth of candidateAuthHeaders) {
+        try {
+          quotation = await tryRequest(url, auth.value, auth.label);
+          if (quotation) break;
+        } catch (error) {
+          lastError = error;
         }
-        if (quotation) break;
       }
+      if (quotation) break;
     }
 
     const hasPrimaryAuthFailure = debugAttempts.some(
-      (attempt) => attempt.status === 401 && typeof attempt.url === 'string' && attempt.url.endsWith('/api/v1/quotations')
+      (attempt) => attempt.status === 401 && typeof attempt.url === 'string' && attempt.url.includes('/quotations')
     );
 
-    if (!quotation && hasPrimaryAuthFailure && SKYDROPX_CLIENT_ID && SKYDROPX_CLIENT_SECRET) {
-      oauthAttempted = true;
-      const oauthResult = await getSkydropxOauthToken();
-      oauthAttemptsDebug = oauthResult?.attempts || [];
-      if (oauthResult?.accessToken) {
-        oauthSucceeded = true;
-        const oauthCandidates = buildSkydropxAuthCandidates(oauthResult.accessToken);
-        activeAuthHeaders = oauthCandidates;
-
-        for (const url of candidateUrls) {
-          for (const auth of oauthCandidates) {
-            try {
-              quotation = await tryRequest(url, auth);
-              if (quotation) {
-                break;
-              }
-            } catch (error) {
-              lastError = error;
-            }
-          }
-          if (quotation) break;
-        }
-      } else {
-        oauthError = oauthResult?.lastError || 'Unknown OAuth error';
-      }
-    }
-
     if (!quotation && hasPrimaryAuthFailure) {
-      if (!SKYDROPX_CLIENT_ID || !SKYDROPX_CLIENT_SECRET) {
-        throw new Error('Skydropx authentication failed (401). Configure SKYDROPX_CLIENT_ID and SKYDROPX_CLIENT_SECRET for OAuth, or verify SKYDROPX_API_KEY.');
-      }
-      if (oauthAttempted && !oauthSucceeded) {
-        throw new Error(`Skydropx authentication failed after OAuth fallback. ${oauthError || 'OAuth token exchange failed.'}`);
-      }
-      throw new Error('Skydropx authentication failed (401 Bad credentials). Verify SKYDROPX_API_KEY / OAuth credentials in Railway backend environment.');
+      throw new Error('Skydropx authentication failed (401 Bad credentials). Verify SKYDROPX_BEARER_TOKEN and/or SKYDROPX_API_KEY in Railway backend environment.');
     }
 
     if (!quotation) {
@@ -899,9 +694,10 @@ app.post('/api/shipping/quote', async (req, res) => {
         let polled = null;
         let pollError = null;
         for (const baseUrl of baseUrlCandidates) {
-          for (const auth of activeAuthHeaders) {
+          const quotationPath = baseUrl.includes('api.skydropx.com') ? '/v1/quotations' : '/api/v1/quotations';
+          for (const auth of candidateAuthHeaders) {
             try {
-              polled = await tryFetchQuotationById(baseUrl, finalQuotation.id, auth);
+              polled = await tryFetchQuotationById(`${baseUrl}${quotationPath}`, finalQuotation.id, auth.value, auth.label);
               if (polled) break;
             } catch (error) {
               pollError = error;
@@ -958,20 +754,7 @@ app.post('/api/shipping/quote', async (req, res) => {
     if (SKYDROPX_DEBUG || req.query?.debug === '1') {
       responsePayload.debug = {
         configuredBaseUrl: SKYDROPX_API_BASE_URL,
-        baseUrlCandidates,
-        tokenFingerprint,
-        envPresence: {
-          SKYDROPX_API_KEY: Boolean(SKYDROPX_API_KEY),
-          SKYDROPX_BEARER_TOKEN: Boolean(process.env.SKYDROPX_BEARER_TOKEN),
-          SKYDROPX_CLIENT_ID: Boolean(SKYDROPX_CLIENT_ID),
-          SKYDROPX_CLIENT_SECRET: Boolean(SKYDROPX_CLIENT_SECRET)
-        },
-        oauth: {
-          attempted: oauthAttempted,
-          succeeded: oauthSucceeded,
-          error: oauthError,
-          attempts: oauthAttemptsDebug
-        },
+        authModesTried: candidateAuthHeaders.map((auth) => auth.label),
         attempts: debugAttempts
       };
     }
