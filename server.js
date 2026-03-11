@@ -238,6 +238,50 @@ async function ensureGuestIdentity() {
 // ============================================
 const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
+const PRODUCT_CATEGORIES = [
+  'Caja de Dirección Hidráulica',
+  'Caja de Dirección Electrónica',
+  'Cremallera Hidráulica',
+  'Cremallera Electrónica',
+  'Bomba Hidráulica',
+  'Transmisión',
+  'Motor',
+  'Diferencial',
+  'Marcha',
+  'Alternador',
+  'Componentes'
+];
+
+const normalizeCategoryKey = (value) => {
+  if (!value) return '';
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+};
+
+const CATEGORY_ALIASES = {
+  'bomba electronica': 'Bomba Hidráulica',
+  'caja de direccion hidraulica': 'Caja de Dirección Hidráulica',
+  'caja de direccion electronica': 'Caja de Dirección Electrónica',
+  'cremallera hidraulica': 'Cremallera Hidráulica',
+  'cremallera electronica': 'Cremallera Electrónica',
+  'transmision': 'Transmisión'
+};
+
+const normalizeProductCategory = (rawCategory) => {
+  const key = normalizeCategoryKey(rawCategory);
+  if (!key) return null;
+
+  const canonicalByDirectMatch = PRODUCT_CATEGORIES.find(
+    (category) => normalizeCategoryKey(category) === key
+  );
+  if (canonicalByDirectMatch) return canonicalByDirectMatch;
+
+  return CATEGORY_ALIASES[key] || null;
+};
+
 // Production-safe amount comparison (allows 1 cent rounding)
 const amountsMatch = (expected, actual, tolerance = 1) => {
   return Math.abs((expected || 0) - (actual || 0)) <= tolerance;
@@ -1076,9 +1120,17 @@ app.put('/api/products/:id', async (req, res) => {
   }
   const { id } = req.params;
   const payload = req.body || {};
+  const normalizedCategory = normalizeProductCategory(payload.category);
+  if (!normalizedCategory) {
+    return res.status(400).json({
+      error: 'Invalid product category',
+      details: `Category \"${payload.category || ''}\" is not allowed`
+    });
+  }
+
   const updatePayload = {
     name: payload.name,
-    category: payload.category,
+    category: normalizedCategory,
     brand: payload.brand,
     compatible_models: payload.compatibleModels,
     price: payload.price,
@@ -1121,9 +1173,17 @@ app.post('/api/products', async (req, res) => {
     return res.status(403).json({ error: 'Service role key required for product creation' });
   }
   const payload = req.body || {};
+  const normalizedCategory = normalizeProductCategory(payload.category);
+  if (!normalizedCategory) {
+    return res.status(400).json({
+      error: 'Invalid product category',
+      details: `Category \"${payload.category || ''}\" is not allowed`
+    });
+  }
+
   const insertPayload = {
     name: payload.name,
-    category: payload.category,
+    category: normalizedCategory,
     brand: payload.brand,
     compatible_models: payload.compatibleModels || [],
     price: payload.price,

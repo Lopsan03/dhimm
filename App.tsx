@@ -56,9 +56,7 @@ const App: React.FC = () => {
   };
 
   const normalizeCategory = (category: string) => {
-    if (category === 'Cremallera Hidráulica') return 'Caja de Dirección Electrónica';
-    if (category === 'Cremallera Electrónica') return 'Caja de Dirección Electrónica';
-    if (category === 'Bomba Hidráulica') return 'Bomba Electrónica';
+    if (category === 'Bomba Electrónica') return 'Bomba Hidráulica';
     return category;
   };
 
