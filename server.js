@@ -42,7 +42,11 @@ const normalizeBaseUrl = (value) => {
 // Skydropx shipping quotation configuration
 const SKYDROPX_API_KEY = sanitizeEnvValue(process.env.SKYDROPX_API_KEY);
 const SKYDROPX_BEARER_TOKEN = sanitizeEnvValue(process.env.SKYDROPX_BEARER_TOKEN);
-const SKYDROPX_API_BASE_URL = normalizeBaseUrl(process.env.SKYDROPX_API_BASE_URL) || 'https://pro.skydropx.com';
+const SKYDROPX_CLIENT_ID = sanitizeEnvValue(process.env.SKYDROPX_CLIENT_ID);
+const SKYDROPX_CLIENT_SECRET = sanitizeEnvValue(process.env.SKYDROPX_CLIENT_SECRET);
+const SKYDROPX_TOKEN_SCOPE = sanitizeEnvValue(process.env.SKYDROPX_TOKEN_SCOPE);
+const SKYDROPX_AUTH_BASE_URL = normalizeBaseUrl(process.env.SKYDROPX_AUTH_BASE_URL) || 'https://app.skydropx.com';
+const SKYDROPX_API_BASE_URL = normalizeBaseUrl(process.env.SKYDROPX_API_BASE_URL) || 'https://app.skydropx.com';
 const SKYDROPX_DEBUG = process.env.SKYDROPX_DEBUG === 'true';
 const SKYDROPX_ORIGIN = {
   company: process.env.SKYDROPX_ORIGIN_COMPANY || 'Dhimma Automotriz',
@@ -54,6 +58,65 @@ const SKYDROPX_ORIGIN = {
   province: process.env.SKYDROPX_ORIGIN_STATE || 'Nuevo León',
   zip_code: process.env.SKYDROPX_ORIGIN_ZIP || '66455',
   country: process.env.SKYDROPX_ORIGIN_COUNTRY || 'MX'
+};
+
+const skydropxTokenCache = {
+  accessToken: null,
+  expiresAtMs: 0
+};
+
+const getSkydropxAccessToken = async ({ forceRefresh = false } = {}) => {
+  const now = Date.now();
+  if (!forceRefresh && skydropxTokenCache.accessToken && skydropxTokenCache.expiresAtMs > now + 60_000) {
+    return skydropxTokenCache.accessToken;
+  }
+
+  if (!SKYDROPX_CLIENT_ID || !SKYDROPX_CLIENT_SECRET) {
+    return null;
+  }
+
+  const tokenUrl = `${SKYDROPX_AUTH_BASE_URL}/api/v1/oauth/token`;
+  const form = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: SKYDROPX_CLIENT_ID,
+    client_secret: SKYDROPX_CLIENT_SECRET
+  });
+
+  if (SKYDROPX_TOKEN_SCOPE) {
+    form.append('scope', SKYDROPX_TOKEN_SCOPE);
+  }
+
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: form.toString()
+  });
+
+  const raw = await response.text();
+  let parsed = {};
+  try {
+    parsed = raw ? JSON.parse(raw) : {};
+  } catch {
+    parsed = { raw };
+  }
+
+  if (!response.ok) {
+    const detail = parsed?.error_description || parsed?.error || raw || `${response.status} ${response.statusText}`;
+    throw new Error(`Skydropx OAuth token request failed: ${detail}`);
+  }
+
+  const accessToken = parsed?.access_token;
+  if (!accessToken) {
+    throw new Error('Skydropx OAuth token response missing access_token');
+  }
+
+  const expiresInSeconds = Number(parsed?.expires_in || 3600);
+  skydropxTokenCache.accessToken = accessToken;
+  skydropxTokenCache.expiresAtMs = now + Math.max(60, expiresInSeconds - 60) * 1000;
+
+  return accessToken;
 };
 
 // Supabase credentials (must be provided)
@@ -492,8 +555,8 @@ app.post('/api/shipping/quote', async (req, res) => {
   };
 
   try {
-    if (!SKYDROPX_BEARER_TOKEN && !SKYDROPX_API_KEY) {
-      return res.status(503).json({ error: 'Skydropx credentials missing. Configure SKYDROPX_BEARER_TOKEN or SKYDROPX_API_KEY on backend' });
+    if (!SKYDROPX_BEARER_TOKEN && !SKYDROPX_API_KEY && (!SKYDROPX_CLIENT_ID || !SKYDROPX_CLIENT_SECRET)) {
+      return res.status(503).json({ error: 'Skydropx credentials missing. Configure SKYDROPX_CLIENT_ID/SKYDROPX_CLIENT_SECRET or SKYDROPX_BEARER_TOKEN or SKYDROPX_API_KEY on backend' });
     }
 
     const destination = req.body?.destination || {};
@@ -637,6 +700,7 @@ app.post('/api/shipping/quote', async (req, res) => {
 
     const baseUrlCandidates = Array.from(new Set([
       SKYDROPX_API_BASE_URL,
+      'https://app.skydropx.com',
       'https://pro.skydropx.com',
       'https://api.skydropx.com'
     ].map(normalizeBaseUrl).filter(Boolean)));
@@ -645,6 +709,21 @@ app.post('/api/shipping/quote', async (req, res) => {
     const candidateUrls = baseUrlCandidates.flatMap((baseUrl) => quotationPathCandidates.map((quotationPath) => `${baseUrl}${quotationPath}`));
 
     candidateAuthHeaders = [];
+    try {
+      const oauthToken = await getSkydropxAccessToken();
+      if (oauthToken) {
+        candidateAuthHeaders.push({ value: `Bearer ${oauthToken}`, label: 'OAuth bearer token' });
+      }
+    } catch (tokenError) {
+      registerAttempt({
+        url: `${SKYDROPX_AUTH_BASE_URL}/api/v1/oauth/token`,
+        authLabel: 'OAuth token exchange',
+        status: 500,
+        ok: false,
+        responseSnippet: tokenError?.message || 'Token exchange failed'
+      });
+    }
+
     if (SKYDROPX_BEARER_TOKEN) {
       candidateAuthHeaders.push({ value: `Bearer ${SKYDROPX_BEARER_TOKEN}`, label: 'Bearer token' });
     }
@@ -674,7 +753,7 @@ app.post('/api/shipping/quote', async (req, res) => {
     );
 
     if (!quotation && hasPrimaryAuthFailure) {
-      throw new Error('Skydropx authentication failed (401 Bad credentials). Verify SKYDROPX_BEARER_TOKEN and/or SKYDROPX_API_KEY in Railway backend environment.');
+      throw new Error('Skydropx authentication failed (401 Bad credentials). Verify SKYDROPX_CLIENT_ID/SKYDROPX_CLIENT_SECRET and/or SKYDROPX_BEARER_TOKEN and/or SKYDROPX_API_KEY in Railway backend environment.');
     }
 
     if (!quotation) {
