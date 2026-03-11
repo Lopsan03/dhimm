@@ -15,13 +15,10 @@ export interface Product {
   category:
     | 'Caja de Dirección Hidráulica'
     | 'Caja de Dirección Electrónica'
-    | 'Cremallera Hidráulica'
-    | 'Cremallera Electrónica'
     | 'Bomba Hidráulica'
     | 'Transmisión'
     | 'Motor'
     | 'Diferencial'
-    | 'Marcha'
     | 'Alternador'
     | 'Componentes';
   brand: string;

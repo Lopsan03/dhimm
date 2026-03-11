@@ -15,15 +15,12 @@ interface AdminPanelProps {
 }
 
 const PRODUCT_CATEGORIES: Product['category'][] = [
-  'Caja de Dirección Hidráulica',
   'Caja de Dirección Electrónica',
-  'Cremallera Hidráulica',
-  'Cremallera Electrónica',
+  'Caja de Dirección Hidráulica',
   'Bomba Hidráulica',
   'Transmisión',
   'Motor',
   'Diferencial',
-  'Marcha',
   'Alternador',
   'Componentes'
 ];

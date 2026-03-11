@@ -20,16 +20,26 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
     'All', 'Acura', 'Alfa Romeo', 'Audi', 'BMW', 'Buick', 'BYD', 'Cadillac', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Cupra', 'Dodge', 'Fiat', 'Ford', 'Geely', 'GMC', 'Great Wall', 'Haval', 'Honda', 'Hyundai', 'Infiniti', 'Isuzu', 'JAC', 'Jaguar', 'Jeep', 'Jetour', 'Kia', 'Land Rover', 'Lexus', 'Lincoln', 'Mazda', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 'Ram', 'Renault', 'SEAT', 'Skoda', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo', 'Foton'
   ], []);
   
-  const categories = ['All', 'Caja de Dirección Electrónica', 'Bomba Electrónica', 'Transmisión', 'Motor', 'Diferencial', 'Marcha', 'Alternador', 'Componentes'];
+  const categories = ['All', 'Caja de Dirección Electrónica', 'Caja de Dirección Hidráulica', 'Bomba Hidráulica', 'Transmisión', 'Motor', 'Diferencial', 'Alternador', 'Componentes'];
+
+  const normalizeCategory = (value: string) => {
+    if (!value) return value;
+    if (value === 'Cremallera Electrónica') return 'Caja de Dirección Electrónica';
+    if (value === 'Cremallera Hidráulica') return 'Caja de Dirección Hidráulica';
+    if (value === 'Bomba Electrónica') return 'Bomba Hidráulica';
+    if (value === 'Transmission') return 'Transmisión';
+    if (value === 'Componenetes') return 'Componentes';
+    return value;
+  };
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           p.compatibleModels.some(m => m.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesBrand = selectedBrand === 'All' || p.brand === selectedBrand;
-    const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory ||
-      (selectedCategory === 'Caja de Dirección Electrónica' && p.category === 'Cremallera Hidráulica') ||
-      (selectedCategory === 'Caja de Dirección Electrónica' && p.category === 'Cremallera Electrónica');
+    const productCategory = normalizeCategory(p.category);
+    const selectedCategoryNormalized = normalizeCategory(selectedCategory);
+    const matchesCategory = selectedCategory === 'All' || productCategory === selectedCategoryNormalized;
     return matchesSearch && matchesBrand && matchesCategory;
   });
 

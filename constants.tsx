@@ -26,7 +26,7 @@ export const MOCK_PRODUCTS: Product[] = [
   {
     id: '2',
     name: 'Bomba Electrónica Toyota Hilux',
-    category: 'Bomba Electrónica',
+    category: 'Bomba Hidráulica',
     brand: 'Toyota',
     compatibleModels: ['Hilux 2005-2015'],
     price: 2100,
@@ -59,7 +59,7 @@ export const MOCK_PRODUCTS: Product[] = [
   {
     id: '5',
     name: 'Bomba Electrónica Honda CR-V',
-    category: 'Bomba Electrónica',
+    category: 'Bomba Hidráulica',
     brand: 'Honda',
     compatibleModels: ['CR-V 2007-2011'],
     price: 2400,

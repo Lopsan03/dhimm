@@ -239,15 +239,12 @@ async function ensureGuestIdentity() {
 const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 const PRODUCT_CATEGORIES = [
-  'Caja de Dirección Hidráulica',
   'Caja de Dirección Electrónica',
-  'Cremallera Hidráulica',
-  'Cremallera Electrónica',
+  'Caja de Dirección Hidráulica',
   'Bomba Hidráulica',
   'Transmisión',
   'Motor',
   'Diferencial',
-  'Marcha',
   'Alternador',
   'Componentes'
 ];
@@ -263,11 +260,14 @@ const normalizeCategoryKey = (value) => {
 
 const CATEGORY_ALIASES = {
   'bomba electronica': 'Bomba Hidráulica',
+  'bomba hidraulica': 'Bomba Hidráulica',
   'caja de direccion hidraulica': 'Caja de Dirección Hidráulica',
   'caja de direccion electronica': 'Caja de Dirección Electrónica',
-  'cremallera hidraulica': 'Cremallera Hidráulica',
-  'cremallera electronica': 'Cremallera Electrónica',
-  'transmision': 'Transmisión'
+  'cremallera hidraulica': 'Caja de Dirección Hidráulica',
+  'cremallera electronica': 'Caja de Dirección Electrónica',
+  'transmision': 'Transmisión',
+  'transmission': 'Transmisión',
+  'componenetes': 'Componentes'
 };
 
 const normalizeProductCategory = (rawCategory) => {
