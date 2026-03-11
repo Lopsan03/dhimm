@@ -42,6 +42,11 @@ const normalizeBaseUrl = (value) => {
 // Skydropx shipping quotation configuration
 const SKYDROPX_API_KEY = sanitizeEnvValue(process.env.SKYDROPX_API_KEY);
 const SKYDROPX_BEARER_TOKEN = sanitizeEnvValue(process.env.SKYDROPX_BEARER_TOKEN) || SKYDROPX_API_KEY;
+const SKYDROPX_RAW_TOKEN = sanitizeEnvValue(SKYDROPX_BEARER_TOKEN || '')
+  .replace(/^bearer\s+/i, '')
+  .replace(/^token\s+/i, '')
+  .replace(/^token=/i, '')
+  .trim();
 const SKYDROPX_API_BASE_URL = normalizeBaseUrl(process.env.SKYDROPX_API_BASE_URL) || 'https://pro.skydropx.com';
 const SKYDROPX_DEBUG = process.env.SKYDROPX_DEBUG === 'true';
 const SKYDROPX_ORIGIN = {
@@ -417,6 +422,32 @@ const addUtcMonths = (value, months) => {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
 };
 
+const buildSkydropxAuthCandidates = (rawToken) => {
+  if (!rawToken) return [];
+  return [
+    {
+      label: 'Authorization: Bearer',
+      headers: { Authorization: `Bearer ${rawToken}` }
+    },
+    {
+      label: 'Authorization: Token token=',
+      headers: { Authorization: `Token token=${rawToken}` }
+    },
+    {
+      label: 'Authorization: Token',
+      headers: { Authorization: `Token ${rawToken}` }
+    },
+    {
+      label: 'X-API-KEY',
+      headers: { 'X-API-KEY': rawToken }
+    },
+    {
+      label: 'x-api-key',
+      headers: { 'x-api-key': rawToken }
+    }
+  ];
+};
+
 const buildAnalyticsRange = (granularity, offset) => {
   const safeOffset = Number.isFinite(offset) && offset > 0 ? Math.floor(offset) : 0;
   const now = new Date();
@@ -491,8 +522,8 @@ app.post('/api/shipping/quote', async (req, res) => {
   };
 
   try {
-    if (!SKYDROPX_BEARER_TOKEN) {
-      return res.status(503).json({ error: 'SKYDROPX_BEARER_TOKEN (or SKYDROPX_API_KEY fallback) is not configured on backend' });
+    if (!SKYDROPX_RAW_TOKEN) {
+      return res.status(503).json({ error: 'SKYDROPX_BEARER_TOKEN / SKYDROPX_API_KEY is not configured on backend' });
     }
 
     const destination = req.body?.destination || {};
@@ -548,12 +579,13 @@ app.post('/api/shipping/quote', async (req, res) => {
       }
     };
 
-    const tryRequest = async (url, authHeader, authLabel) => {
+    const tryRequest = async (url, authCandidate) => {
+      const authLabel = authCandidate?.label || 'unknown-auth';
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': authHeader
+          ...(authCandidate?.headers || {})
         },
         body: JSON.stringify(payload)
       });
@@ -591,13 +623,14 @@ app.post('/api/shipping/quote', async (req, res) => {
       }
     };
 
-    const tryFetchQuotationById = async (baseUrl, quotationId, authHeader, authLabel) => {
+    const tryFetchQuotationById = async (baseUrl, quotationId, authCandidate) => {
+      const authLabel = authCandidate?.label || 'unknown-auth';
       const url = `${baseUrl}/api/v1/quotations/${quotationId}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': authHeader
+          ...(authCandidate?.headers || {})
         }
       });
 
@@ -640,9 +673,7 @@ app.post('/api/shipping/quote', async (req, res) => {
     ].map(normalizeBaseUrl).filter(Boolean)));
 
     const candidateUrls = baseUrlCandidates.map((baseUrl) => `${baseUrl}/api/v1/quotations`);
-    const candidateAuthHeaders = [
-      { value: `Bearer ${SKYDROPX_BEARER_TOKEN}`, label: 'Bearer' }
-    ];
+    const candidateAuthHeaders = buildSkydropxAuthCandidates(SKYDROPX_RAW_TOKEN);
 
     let quotation = null;
     let lastError = null;
@@ -650,7 +681,7 @@ app.post('/api/shipping/quote', async (req, res) => {
     for (const url of candidateUrls) {
       for (const auth of candidateAuthHeaders) {
         try {
-          quotation = await tryRequest(url, auth.value, auth.label);
+          quotation = await tryRequest(url, auth);
           if (quotation) break;
         } catch (error) {
           lastError = error;
@@ -686,7 +717,7 @@ app.post('/api/shipping/quote', async (req, res) => {
         for (const baseUrl of baseUrlCandidates) {
           for (const auth of candidateAuthHeaders) {
             try {
-              polled = await tryFetchQuotationById(baseUrl, finalQuotation.id, auth.value, auth.label);
+              polled = await tryFetchQuotationById(baseUrl, finalQuotation.id, auth);
               if (polled) break;
             } catch (error) {
               pollError = error;
