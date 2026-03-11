@@ -477,17 +477,34 @@ let skydropxOAuthCache = {
   expiresAt: 0
 };
 
+const buildSkydropxOauthEndpointCandidates = () => {
+  const bases = Array.from(new Set([
+    SKYDROPX_OAUTH_URL,
+    'https://app.skydropx.com',
+    'https://pro.skydropx.com'
+  ].map(normalizeBaseUrl).filter(Boolean)));
+
+  const paths = ['/api/v1/oauth/token', '/oauth/token'];
+  const urls = [];
+  for (const base of bases) {
+    for (const p of paths) {
+      urls.push(`${base}${p}`);
+    }
+  }
+  return Array.from(new Set(urls));
+};
+
 const getSkydropxOauthToken = async () => {
   if (!SKYDROPX_CLIENT_ID || !SKYDROPX_CLIENT_SECRET) {
-    return null;
+    return { accessToken: null, attempts: [], lastError: 'Missing SKYDROPX_CLIENT_ID / SKYDROPX_CLIENT_SECRET' };
   }
 
   const now = Date.now();
   if (skydropxOAuthCache.accessToken && skydropxOAuthCache.expiresAt > now + 30000) {
-    return skydropxOAuthCache.accessToken;
+    return { accessToken: skydropxOAuthCache.accessToken, attempts: [{ source: 'cache', ok: true }], lastError: null };
   }
 
-  const tokenUrl = `${SKYDROPX_OAUTH_URL}/api/v1/oauth/token`;
+  const tokenUrls = buildSkydropxOauthEndpointCandidates();
   const requestVariants = [
     {
       label: 'oauth-json',
@@ -522,39 +539,50 @@ const getSkydropxOauthToken = async () => {
   ];
 
   let lastOauthError = null;
+  const oauthAttempts = [];
 
-  for (const variant of requestVariants) {
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: variant.headers,
-      body: variant.body
-    });
+  for (const tokenUrl of tokenUrls) {
+    for (const variant of requestVariants) {
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: variant.headers,
+        body: variant.body
+      });
 
-    const bodyText = await response.text();
-    let data = {};
-    try {
-      data = bodyText ? JSON.parse(bodyText) : {};
-    } catch {
-      data = { raw: bodyText };
+      const bodyText = await response.text();
+      let data = {};
+      try {
+        data = bodyText ? JSON.parse(bodyText) : {};
+      } catch {
+        data = { raw: bodyText };
+      }
+
+      if (response.ok && data?.access_token) {
+        const expiresIn = Number(data.expires_in || 3600);
+        skydropxOAuthCache = {
+          accessToken: data.access_token,
+          expiresAt: now + Math.max(60, expiresIn) * 1000
+        };
+        oauthAttempts.push({ tokenUrl, variant: variant.label, status: response.status, ok: true });
+        return { accessToken: data.access_token, attempts: oauthAttempts, lastError: null };
+      }
+
+      const message = data?.error_description || data?.error || `OAuth token request failed (${response.status})`;
+      lastOauthError = `Skydropx OAuth error [${variant.label}] @ ${tokenUrl}: ${message}`;
+      oauthAttempts.push({
+        tokenUrl,
+        variant: variant.label,
+        status: response.status,
+        ok: false,
+        responseSnippet: bodyText.slice(0, 200)
+      });
     }
-
-    if (response.ok && data?.access_token) {
-      const expiresIn = Number(data.expires_in || 3600);
-      skydropxOAuthCache = {
-        accessToken: data.access_token,
-        expiresAt: now + Math.max(60, expiresIn) * 1000
-      };
-      return data.access_token;
-    }
-
-    const message = data?.error_description || data?.error || `OAuth token request failed (${response.status})`;
-    lastOauthError = `Skydropx OAuth error [${variant.label}]: ${message}`;
   }
 
   if (lastOauthError) {
-    throw new Error(lastOauthError);
+    return { accessToken: null, attempts: oauthAttempts, lastError: lastOauthError };
   }
-  throw new Error('Skydropx OAuth error: unknown token request failure');
+  return { accessToken: null, attempts: oauthAttempts, lastError: 'Skydropx OAuth error: unknown token request failure' };
 };
 
 const buildAnalyticsRange = (granularity, offset) => {
@@ -621,6 +649,7 @@ app.post('/api/shipping/quote', async (req, res) => {
   let oauthAttempted = false;
   let oauthSucceeded = false;
   let oauthError = null;
+  let oauthAttemptsDebug = [];
   const tokenFingerprint = SKYDROPX_RAW_TOKEN
     ? {
         length: SKYDROPX_RAW_TOKEN.length,
@@ -646,8 +675,8 @@ app.post('/api/shipping/quote', async (req, res) => {
   };
 
   try {
-    if (!SKYDROPX_RAW_TOKEN) {
-      return res.status(503).json({ error: 'SKYDROPX_BEARER_TOKEN / SKYDROPX_API_KEY is not configured on backend' });
+    if (!SKYDROPX_RAW_TOKEN && !(SKYDROPX_CLIENT_ID && SKYDROPX_CLIENT_SECRET)) {
+      return res.status(503).json({ error: 'No Skydropx auth configured. Set SKYDROPX_API_KEY or SKYDROPX_CLIENT_ID + SKYDROPX_CLIENT_SECRET.' });
     }
 
     const destination = req.body?.destination || {};
@@ -798,16 +827,18 @@ app.post('/api/shipping/quote', async (req, res) => {
     let quotation = null;
     let lastError = null;
 
-    for (const url of candidateUrls) {
-      for (const auth of candidateAuthHeaders) {
-        try {
-          quotation = await tryRequest(url, auth);
-          if (quotation) break;
-        } catch (error) {
-          lastError = error;
+    if (candidateAuthHeaders.length > 0) {
+      for (const url of candidateUrls) {
+        for (const auth of candidateAuthHeaders) {
+          try {
+            quotation = await tryRequest(url, auth);
+            if (quotation) break;
+          } catch (error) {
+            lastError = error;
+          }
         }
+        if (quotation) break;
       }
-      if (quotation) break;
     }
 
     const hasPrimaryAuthFailure = debugAttempts.some(
@@ -816,29 +847,28 @@ app.post('/api/shipping/quote', async (req, res) => {
 
     if (!quotation && hasPrimaryAuthFailure && SKYDROPX_CLIENT_ID && SKYDROPX_CLIENT_SECRET) {
       oauthAttempted = true;
-      try {
-        const oauthToken = await getSkydropxOauthToken();
-        if (oauthToken) {
-          oauthSucceeded = true;
-          const oauthCandidates = buildSkydropxAuthCandidates(oauthToken);
-          activeAuthHeaders = oauthCandidates;
+      const oauthResult = await getSkydropxOauthToken();
+      oauthAttemptsDebug = oauthResult?.attempts || [];
+      if (oauthResult?.accessToken) {
+        oauthSucceeded = true;
+        const oauthCandidates = buildSkydropxAuthCandidates(oauthResult.accessToken);
+        activeAuthHeaders = oauthCandidates;
 
-          for (const url of candidateUrls) {
-            for (const auth of oauthCandidates) {
-              try {
-                quotation = await tryRequest(url, auth);
-                if (quotation) {
-                  break;
-                }
-              } catch (error) {
-                lastError = error;
+        for (const url of candidateUrls) {
+          for (const auth of oauthCandidates) {
+            try {
+              quotation = await tryRequest(url, auth);
+              if (quotation) {
+                break;
               }
+            } catch (error) {
+              lastError = error;
             }
-            if (quotation) break;
           }
+          if (quotation) break;
         }
-      } catch (error) {
-        oauthError = error?.message || 'Unknown OAuth error';
+      } else {
+        oauthError = oauthResult?.lastError || 'Unknown OAuth error';
       }
     }
 
@@ -939,7 +969,8 @@ app.post('/api/shipping/quote', async (req, res) => {
         oauth: {
           attempted: oauthAttempted,
           succeeded: oauthSucceeded,
-          error: oauthError
+          error: oauthError,
+          attempts: oauthAttemptsDebug
         },
         attempts: debugAttempts
       };
