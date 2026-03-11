@@ -1155,7 +1155,12 @@ app.put('/api/products/:id', async (req, res) => {
       console.error('Error updating product:', error.message);
       return res.status(500).json({
         error: 'Failed to update product',
-        details: error.message
+        details: error.message,
+        code: error.code || null,
+        hint: error.hint || null,
+        dbDetails: error.details || null,
+        categoryReceived: payload.category || null,
+        categoryNormalized: normalizedCategory
       });
     }
 
@@ -1209,7 +1214,12 @@ app.post('/api/products', async (req, res) => {
       console.error('Error creating product:', error.message);
       return res.status(500).json({
         error: 'Failed to create product',
-        details: error.message
+        details: error.message,
+        code: error.code || null,
+        hint: error.hint || null,
+        dbDetails: error.details || null,
+        categoryReceived: payload.category || null,
+        categoryNormalized: normalizedCategory
       });
     }
 
