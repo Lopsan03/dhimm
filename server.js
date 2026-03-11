@@ -49,6 +49,20 @@ const SKYDROPX_RAW_TOKEN = sanitizeEnvValue(SKYDROPX_BEARER_TOKEN || '')
   .trim();
 const SKYDROPX_API_BASE_URL = normalizeBaseUrl(process.env.SKYDROPX_API_BASE_URL) || 'https://pro.skydropx.com';
 const SKYDROPX_DEBUG = process.env.SKYDROPX_DEBUG === 'true';
+const SKYDROPX_TOKEN_FINGERPRINT = SKYDROPX_RAW_TOKEN
+  ? {
+      length: SKYDROPX_RAW_TOKEN.length,
+      prefix: SKYDROPX_RAW_TOKEN.slice(0, 4),
+      suffix: SKYDROPX_RAW_TOKEN.slice(-4)
+    }
+  : null;
+
+console.log('[skydropx] config', {
+  baseUrl: SKYDROPX_API_BASE_URL,
+  hasApiKey: Boolean(SKYDROPX_API_KEY),
+  hasBearerToken: Boolean(process.env.SKYDROPX_BEARER_TOKEN),
+  tokenFingerprint: SKYDROPX_TOKEN_FINGERPRINT
+});
 const SKYDROPX_ORIGIN = {
   company: process.env.SKYDROPX_ORIGIN_COMPANY || 'Dhimma Automotriz',
   name: process.env.SKYDROPX_ORIGIN_NAME || 'Dhimma',
@@ -426,6 +440,10 @@ const buildSkydropxAuthCandidates = (rawToken) => {
   if (!rawToken) return [];
   return [
     {
+      label: 'Authorization: raw',
+      headers: { Authorization: rawToken }
+    },
+    {
       label: 'Authorization: Bearer',
       headers: { Authorization: `Bearer ${rawToken}` }
     },
@@ -623,6 +641,14 @@ app.post('/api/shipping/quote', async (req, res) => {
       }
     };
 
+      const tokenFingerprint = SKYDROPX_RAW_TOKEN
+        ? {
+            length: SKYDROPX_RAW_TOKEN.length,
+            prefix: SKYDROPX_RAW_TOKEN.slice(0, 4),
+            suffix: SKYDROPX_RAW_TOKEN.slice(-4)
+          }
+        : null;
+
     const tryFetchQuotationById = async (baseUrl, quotationId, authCandidate) => {
       const authLabel = authCandidate?.label || 'unknown-auth';
       const url = `${baseUrl}/api/v1/quotations/${quotationId}`;
@@ -669,7 +695,8 @@ app.post('/api/shipping/quote', async (req, res) => {
 
     const baseUrlCandidates = Array.from(new Set([
       SKYDROPX_API_BASE_URL,
-      'https://pro.skydropx.com'
+      'https://pro.skydropx.com',
+      'https://api.skydropx.com'
     ].map(normalizeBaseUrl).filter(Boolean)));
 
     const candidateUrls = baseUrlCandidates.map((baseUrl) => `${baseUrl}/api/v1/quotations`);
@@ -774,6 +801,12 @@ app.post('/api/shipping/quote', async (req, res) => {
     if (SKYDROPX_DEBUG || req.query?.debug === '1') {
       responsePayload.debug = {
         configuredBaseUrl: SKYDROPX_API_BASE_URL,
+        baseUrlCandidates,
+        tokenFingerprint,
+        envPresence: {
+          SKYDROPX_API_KEY: Boolean(SKYDROPX_API_KEY),
+          SKYDROPX_BEARER_TOKEN: Boolean(process.env.SKYDROPX_BEARER_TOKEN)
+        },
         attempts: debugAttempts
       };
     }
