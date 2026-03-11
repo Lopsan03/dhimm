@@ -75,48 +75,100 @@ const getSkydropxAccessToken = async ({ forceRefresh = false } = {}) => {
     return null;
   }
 
-  const tokenUrl = `${SKYDROPX_AUTH_BASE_URL}/api/v1/oauth/token`;
-  const form = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: SKYDROPX_CLIENT_ID,
-    client_secret: SKYDROPX_CLIENT_SECRET
-  });
+  const tokenBaseCandidates = Array.from(new Set([
+    SKYDROPX_AUTH_BASE_URL,
+    SKYDROPX_API_BASE_URL,
+    'https://app.skydropx.com',
+    'https://pro.skydropx.com',
+    'https://api.skydropx.com'
+  ].map(normalizeBaseUrl).filter(Boolean)));
 
-  if (SKYDROPX_TOKEN_SCOPE) {
-    form.append('scope', SKYDROPX_TOKEN_SCOPE);
+  const tokenPathCandidates = ['/api/v1/oauth/token', '/oauth/token'];
+
+  const makeBody = (mode) => {
+    if (mode === 'form') {
+      const form = new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: SKYDROPX_CLIENT_ID,
+        client_secret: SKYDROPX_CLIENT_SECRET
+      });
+      if (SKYDROPX_TOKEN_SCOPE) form.append('scope', SKYDROPX_TOKEN_SCOPE);
+      return form.toString();
+    }
+    const body = {
+      grant_type: 'client_credentials',
+      client_id: SKYDROPX_CLIENT_ID,
+      client_secret: SKYDROPX_CLIENT_SECRET
+    };
+    if (SKYDROPX_TOKEN_SCOPE) body.scope = SKYDROPX_TOKEN_SCOPE;
+    return JSON.stringify(body);
+  };
+
+  const authHeaderCandidates = [{ label: 'none', value: null }];
+  if (SKYDROPX_BEARER_TOKEN) {
+    authHeaderCandidates.push({ label: 'bearer_env_token', value: `Bearer ${SKYDROPX_BEARER_TOKEN}` });
+  }
+  if (SKYDROPX_API_KEY) {
+    authHeaderCandidates.push({ label: 'token_api_key', value: `Token token=${SKYDROPX_API_KEY}` });
+    authHeaderCandidates.push({ label: 'bearer_api_key', value: `Bearer ${SKYDROPX_API_KEY}` });
   }
 
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: form.toString()
-  });
+  const modeCandidates = [
+    { label: 'form', contentType: 'application/x-www-form-urlencoded', body: makeBody('form') },
+    { label: 'json', contentType: 'application/json', body: makeBody('json') }
+  ];
 
-  const raw = await response.text();
-  let parsed = {};
-  try {
-    parsed = raw ? JSON.parse(raw) : {};
-  } catch {
-    parsed = { raw };
+  const attemptErrors = [];
+
+  for (const baseUrl of tokenBaseCandidates) {
+    for (const tokenPath of tokenPathCandidates) {
+      const tokenUrl = `${baseUrl}${tokenPath}`;
+      for (const mode of modeCandidates) {
+        for (const authHeader of authHeaderCandidates) {
+          const headers = { 'Content-Type': mode.contentType };
+          if (authHeader.value) headers.Authorization = authHeader.value;
+
+          try {
+            const response = await fetch(tokenUrl, {
+              method: 'POST',
+              headers,
+              body: mode.body
+            });
+
+            const raw = await response.text();
+            let parsed = {};
+            try {
+              parsed = raw ? JSON.parse(raw) : {};
+            } catch {
+              parsed = { raw };
+            }
+
+            if (!response.ok) {
+              const snippet = (raw || '').slice(0, 220).replace(/\s+/g, ' ').trim();
+              attemptErrors.push(`[${response.status}] ${tokenUrl} mode=${mode.label} auth=${authHeader.label} ${snippet}`);
+              continue;
+            }
+
+            const accessToken = parsed?.access_token;
+            if (!accessToken) {
+              const snippet = (raw || '').slice(0, 220).replace(/\s+/g, ' ').trim();
+              attemptErrors.push(`[200-no-token] ${tokenUrl} mode=${mode.label} auth=${authHeader.label} ${snippet}`);
+              continue;
+            }
+
+            const expiresInSeconds = Number(parsed?.expires_in || 3600);
+            skydropxTokenCache.accessToken = accessToken;
+            skydropxTokenCache.expiresAtMs = now + Math.max(60, expiresInSeconds - 60) * 1000;
+            return accessToken;
+          } catch (err) {
+            attemptErrors.push(`[exception] ${tokenUrl} mode=${mode.label} auth=${authHeader.label} ${err?.message || 'request failed'}`);
+          }
+        }
+      }
+    }
   }
 
-  if (!response.ok) {
-    const detail = parsed?.error_description || parsed?.error || raw || `${response.status} ${response.statusText}`;
-    throw new Error(`Skydropx OAuth token request failed: ${detail}`);
-  }
-
-  const accessToken = parsed?.access_token;
-  if (!accessToken) {
-    throw new Error('Skydropx OAuth token response missing access_token');
-  }
-
-  const expiresInSeconds = Number(parsed?.expires_in || 3600);
-  skydropxTokenCache.accessToken = accessToken;
-  skydropxTokenCache.expiresAtMs = now + Math.max(60, expiresInSeconds - 60) * 1000;
-
-  return accessToken;
+  throw new Error(`Skydropx OAuth token request failed. Tried ${attemptErrors.length} variants. Last: ${attemptErrors[attemptErrors.length - 1] || 'no details'}`);
 };
 
 // Supabase credentials (must be provided)
