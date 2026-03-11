@@ -488,36 +488,73 @@ const getSkydropxOauthToken = async () => {
   }
 
   const tokenUrl = `${SKYDROPX_OAUTH_URL}/api/v1/oauth/token`;
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'client_credentials',
-      client_id: SKYDROPX_CLIENT_ID,
-      client_secret: SKYDROPX_CLIENT_SECRET
-    })
-  });
+  const requestVariants = [
+    {
+      label: 'oauth-json',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'client_credentials',
+        client_id: SKYDROPX_CLIENT_ID,
+        client_secret: SKYDROPX_CLIENT_SECRET
+      })
+    },
+    {
+      label: 'oauth-form',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: SKYDROPX_CLIENT_ID,
+        client_secret: SKYDROPX_CLIENT_SECRET
+      }).toString()
+    },
+    {
+      label: 'oauth-json-with-bearer',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(SKYDROPX_RAW_TOKEN ? { Authorization: `Bearer ${SKYDROPX_RAW_TOKEN}` } : {})
+      },
+      body: JSON.stringify({
+        grant_type: 'client_credentials',
+        client_id: SKYDROPX_CLIENT_ID,
+        client_secret: SKYDROPX_CLIENT_SECRET
+      })
+    }
+  ];
 
-  const bodyText = await response.text();
-  let data = {};
-  try {
-    data = bodyText ? JSON.parse(bodyText) : {};
-  } catch {
-    data = { raw: bodyText };
-  }
+  let lastOauthError = null;
 
-  if (!response.ok || !data?.access_token) {
+  for (const variant of requestVariants) {
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: variant.headers,
+      body: variant.body
+    });
+
+    const bodyText = await response.text();
+    let data = {};
+    try {
+      data = bodyText ? JSON.parse(bodyText) : {};
+    } catch {
+      data = { raw: bodyText };
+    }
+
+    if (response.ok && data?.access_token) {
+      const expiresIn = Number(data.expires_in || 3600);
+      skydropxOAuthCache = {
+        accessToken: data.access_token,
+        expiresAt: now + Math.max(60, expiresIn) * 1000
+      };
+      return data.access_token;
+    }
+
     const message = data?.error_description || data?.error || `OAuth token request failed (${response.status})`;
-    throw new Error(`Skydropx OAuth error: ${message}`);
+    lastOauthError = `Skydropx OAuth error [${variant.label}]: ${message}`;
   }
 
-  const expiresIn = Number(data.expires_in || 3600);
-  skydropxOAuthCache = {
-    accessToken: data.access_token,
-    expiresAt: now + Math.max(60, expiresIn) * 1000
-  };
-
-  return data.access_token;
+  if (lastOauthError) {
+    throw new Error(lastOauthError);
+  }
+  throw new Error('Skydropx OAuth error: unknown token request failure');
 };
 
 const buildAnalyticsRange = (granularity, offset) => {
@@ -756,6 +793,7 @@ app.post('/api/shipping/quote', async (req, res) => {
 
     const candidateUrls = baseUrlCandidates.map((baseUrl) => `${baseUrl}/api/v1/quotations`);
     const candidateAuthHeaders = buildSkydropxAuthCandidates(SKYDROPX_RAW_TOKEN);
+    let activeAuthHeaders = candidateAuthHeaders;
 
     let quotation = null;
     let lastError = null;
@@ -783,6 +821,7 @@ app.post('/api/shipping/quote', async (req, res) => {
         if (oauthToken) {
           oauthSucceeded = true;
           const oauthCandidates = buildSkydropxAuthCandidates(oauthToken);
+          activeAuthHeaders = oauthCandidates;
 
           for (const url of candidateUrls) {
             for (const auth of oauthCandidates) {
@@ -804,7 +843,13 @@ app.post('/api/shipping/quote', async (req, res) => {
     }
 
     if (!quotation && hasPrimaryAuthFailure) {
-      throw new Error('Skydropx authentication failed (401 Bad credentials). Verify SKYDROPX_API_KEY in Railway backend environment.');
+      if (!SKYDROPX_CLIENT_ID || !SKYDROPX_CLIENT_SECRET) {
+        throw new Error('Skydropx authentication failed (401). Configure SKYDROPX_CLIENT_ID and SKYDROPX_CLIENT_SECRET for OAuth, or verify SKYDROPX_API_KEY.');
+      }
+      if (oauthAttempted && !oauthSucceeded) {
+        throw new Error(`Skydropx authentication failed after OAuth fallback. ${oauthError || 'OAuth token exchange failed.'}`);
+      }
+      throw new Error('Skydropx authentication failed (401 Bad credentials). Verify SKYDROPX_API_KEY / OAuth credentials in Railway backend environment.');
     }
 
     if (!quotation) {
@@ -824,7 +869,7 @@ app.post('/api/shipping/quote', async (req, res) => {
         let polled = null;
         let pollError = null;
         for (const baseUrl of baseUrlCandidates) {
-          for (const auth of candidateAuthHeaders) {
+          for (const auth of activeAuthHeaders) {
             try {
               polled = await tryFetchQuotationById(baseUrl, finalQuotation.id, auth);
               if (polled) break;
