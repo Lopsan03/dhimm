@@ -7,7 +7,7 @@ export const COMPANY_INFO = {
   category: "Automotive Wholesaler",
   address: "av de la juventud #590, san nicolás de los garza, mexico",
   phone: "81 3273 2525",
-  email: "ventas_duar@hotmail.com",
+  email: "ventas@dhimma.com",
   whatsapp: "https://wa.me/528132732525"
 };
 
