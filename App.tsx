@@ -153,11 +153,19 @@ const App: React.FC = () => {
           price: parseFloat(p.price),
           stock: p.stock,
           image: imageMap[p.name] || p.image,
-          description: normalizeTerminology(p.description || '')
+          description: normalizeTerminology(p.description || ''),
+          discounted_price: p.discounted_price ? parseFloat(p.discounted_price) : null,
+          discount_enabled: Boolean(p.discount_enabled)
         }));
         console.log('[products] parsed count:', productsWithImages.length);
         setProducts(productsWithImages);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setProducts(MOCK_PRODUCTS.map(p => ({ ...p, image: imageMap[p.name] ?? p.image })));
+      }
 
+      // Handle auth separately - don't let auth errors overwrite successful product data
+      try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user?.id) {
           // Check if user is admin from profile
@@ -219,8 +227,7 @@ const App: React.FC = () => {
           }
         }
       } catch (err) {
-        console.error('Error fetching data:', err);
-        setProducts(MOCK_PRODUCTS.map(p => ({ ...p, image: imageMap[p.name] ?? p.image })));
+        console.error('[auth] Error in auth flow:', err);
         setOrders([]);
       } finally {
         setLoading(false);

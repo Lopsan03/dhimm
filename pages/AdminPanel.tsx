@@ -197,7 +197,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
     description: '',
     category: 'Caja de Dirección Electrónica' as const,
     brand: '',
-    compatibleModels: '' as any
+    compatibleModels: '' as any,
+    discounted_price: 0,
+    discount_enabled: false
   });
   const [createForm, setCreateForm] = useState({
     name: '',
@@ -206,7 +208,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
     description: '',
     category: 'Caja de Dirección Electrónica' as const,
     brand: '',
-    compatibleModels: '' as any
+    compatibleModels: '' as any,
+    discounted_price: 0,
+    discount_enabled: false
   });
   const [createImageFile, setCreateImageFile] = useState<File | null>(null);
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
@@ -284,7 +288,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       description: product.description || '',
       category: product.category,
       brand: product.brand,
-      compatibleModels: (product.compatibleModels || []).join(', ')
+      compatibleModels: (product.compatibleModels || []).join(', '),
+      discounted_price: product.discounted_price || 0,
+      discount_enabled: product.discount_enabled || false
     });
     setEditImageFile(null);
     setShowEditModal(true);
@@ -293,6 +299,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingProduct) {
+      // Validate prices if discount is enabled
+      if (editForm.discount_enabled) {
+        if (editForm.price <= 0 || editForm.discounted_price <= 0) {
+          alert('Los precios deben ser mayores a 0');
+          return;
+        }
+        if (editForm.discounted_price >= editForm.price) {
+          alert('El precio con descuento debe ser menor que el precio original');
+          return;
+        }
+      }
+
       let imageUrl = editingProduct.image;
       try {
         if (editImageFile) {
@@ -313,7 +331,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
         category: editForm.category,
         brand: editForm.brand,
         image: imageUrl,
-        compatibleModels: editForm.compatibleModels.split(',').map((m: string) => m.trim()).filter((m: string) => m)
+        compatibleModels: editForm.compatibleModels.split(',').map((m: string) => m.trim()).filter((m: string) => m),
+        discounted_price: editForm.discount_enabled ? editForm.discounted_price : null,
+        discount_enabled: editForm.discount_enabled
       });
       closeEditModal();
     }
@@ -329,7 +349,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       description: '',
       category: 'Caja de Dirección Electrónica' as const,
       brand: '',
-      compatibleModels: '' as any
+      compatibleModels: '' as any,
+      discounted_price: 0,
+      discount_enabled: false
     });
     setEditImageFile(null);
   };
@@ -342,7 +364,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       description: '',
       category: 'Caja de Dirección Electrónica' as const,
       brand: '',
-      compatibleModels: '' as any
+      compatibleModels: '' as any,
+      discounted_price: 0,
+      discount_enabled: false
     });
     setCreateImageFile(null);
     setShowCreateModal(true);
@@ -358,6 +382,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       alert('Por favor agrega una imagen');
       return;
     }
+    
+    // Validate prices if discount is enabled
+    if (createForm.discount_enabled) {
+      if (createForm.price <= 0 || createForm.discounted_price <= 0) {
+        alert('Los precios deben ser mayores a 0');
+        return;
+      }
+      if (createForm.discounted_price >= createForm.price) {
+        alert('El precio con descuento debe ser menor que el precio original');
+        return;
+      }
+    }
+
     let imageUrl = '';
     try {
       if (createImageFile) {
@@ -378,6 +415,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
       stock: createForm.stock,
       image: imageUrl,
       description: createForm.description,
+      discounted_price: createForm.discount_enabled ? createForm.discounted_price : null,
+      discount_enabled: createForm.discount_enabled
     };
     onCreateProduct(newProduct);
     closeCreateModal();
@@ -809,6 +848,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                 </div>
               </div>
 
+              <div className="space-y-4 bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-2xl border-2 border-orange-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-900 uppercase tracking-widest">Habilitar Descuento</label>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm({...editForm, discount_enabled: !editForm.discount_enabled})}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${editForm.discount_enabled ? 'bg-green-500' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${editForm.discount_enabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {editForm.discount_enabled && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio con Descuento *</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        placeholder="0.00"
+                        className="w-full p-5 bg-white border-2 border-orange-200 rounded-2xl outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 transition-all font-bold text-slate-800"
+                        value={editForm.discounted_price} 
+                        onChange={e => setEditForm({...editForm, discounted_price: Number(e.target.value)})}
+                      />
+                    </div>
+                    {editForm.price > 0 && editForm.discounted_price > 0 && editForm.discounted_price < editForm.price && (
+                      <p className="text-[11px] font-bold text-green-600 bg-green-50 p-3 rounded-lg">
+                        ✓ Descuento: {Math.round((1 - editForm.discounted_price / editForm.price) * 100)}% OFF
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Detalles del Producto</label>
                 <textarea 
@@ -924,6 +996,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ products, orders, onUpdateProdu
                     onChange={e => setCreateForm({...createForm, stock: Number(e.target.value)})}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-4 bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-2xl border-2 border-orange-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-900 uppercase tracking-widest">Habilitar Descuento</label>
+                  <button
+                    type="button"
+                    onClick={() => setCreateForm({...createForm, discount_enabled: !createForm.discount_enabled})}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${createForm.discount_enabled ? 'bg-green-500' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${createForm.discount_enabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {createForm.discount_enabled && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio con Descuento *</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        placeholder="0.00"
+                        className="w-full p-5 bg-white border-2 border-orange-200 rounded-2xl outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 transition-all font-bold text-slate-800"
+                        value={createForm.discounted_price} 
+                        onChange={e => setCreateForm({...createForm, discounted_price: Number(e.target.value)})}
+                      />
+                    </div>
+                    {createForm.price > 0 && createForm.discounted_price > 0 && createForm.discounted_price < createForm.price && (
+                      <p className="text-[11px] font-bold text-green-600 bg-green-50 p-3 rounded-lg">
+                        ✓ Descuento: {Math.round((1 - createForm.discounted_price / createForm.price) * 100)}% OFF
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
 
               <div className="space-y-2">

@@ -71,8 +71,25 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
 
             <div className="bg-slate-50/50 rounded-[2.5rem] p-10 border-2 border-slate-50">
               <div className="flex items-end gap-3 mb-8">
-                <span className="text-5xl font-black text-slate-900">${product.price.toLocaleString('es-MX')}</span>
-                <span className="text-slate-400 font-black uppercase text-[10px] tracking-widest mb-2">MXN / Neto</span>
+                {product.discount_enabled && product.discounted_price ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-end gap-3">
+                      <span className="text-5xl font-black text-green-600">${product.discounted_price.toLocaleString('es-MX')}</span>
+                      <span className="text-slate-400 font-black uppercase text-[10px] tracking-widest mb-2">MXN / Neto</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg text-slate-400 line-through">${product.price.toLocaleString('es-MX')}</span>
+                      <span className="text-[10px] font-black px-3 py-1 rounded-full bg-red-500/10 text-red-600 uppercase tracking-widest">
+                        {Math.round((1 - product.discounted_price / product.price) * 100)}% OFF
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-5xl font-black text-slate-900">${product.price.toLocaleString('es-MX')}</span>
+                    <span className="text-slate-400 font-black uppercase text-[10px] tracking-widest mb-2">MXN / Neto</span>
+                  </>
+                )}
               </div>
 
               <div className="mb-8 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold">

@@ -51,9 +51,27 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         </p>
 
         <div className="flex items-center justify-between mt-auto">
-          <span className="text-lg font-bold text-slate-900">
-            ${product.price.toLocaleString('es-MX')}
-          </span>
+          <div className="flex flex-col gap-1">
+            {product.discount_enabled && product.discounted_price ? (
+              <>
+                <span className="text-xs font-bold text-slate-400 line-through">
+                  ${product.price.toLocaleString('es-MX')}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-black text-green-600">
+                    ${product.discounted_price.toLocaleString('es-MX')}
+                  </span>
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-red-500/10 text-red-600 uppercase tracking-widest">
+                    {Math.round((1 - product.discounted_price / product.price) * 100)}% OFF
+                  </span>
+                </div>
+              </>
+            ) : (
+              <span className="text-lg font-bold text-slate-900">
+                ${product.price.toLocaleString('es-MX')}
+              </span>
+            )}
+          </div>
           <button 
             onClick={handleAdd}
             disabled={product.stock <= 0}

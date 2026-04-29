@@ -1271,6 +1271,33 @@ app.put('/api/products/:id', async (req, res) => {
     });
   }
 
+  // Validate discount pricing
+  if (typeof payload.discount_enabled !== 'undefined' && payload.discount_enabled) {
+    const originalPrice = Number(payload.price);
+    const discountedPrice = Number(payload.discounted_price);
+    
+    if (isNaN(originalPrice) || isNaN(discountedPrice)) {
+      return res.status(400).json({
+        error: 'Invalid price values',
+        details: 'Both original price and discounted price must be valid numbers'
+      });
+    }
+
+    if (originalPrice <= 0 || discountedPrice <= 0) {
+      return res.status(400).json({
+        error: 'Invalid price values',
+        details: 'Both original price and discounted price must be positive numbers'
+      });
+    }
+
+    if (discountedPrice >= originalPrice) {
+      return res.status(400).json({
+        error: 'Invalid discounted price',
+        details: 'Discounted price must be less than the original price'
+      });
+    }
+  }
+
   const updatePayload = {
     name: payload.name,
     category: normalizedCategory,
@@ -1280,6 +1307,8 @@ app.put('/api/products/:id', async (req, res) => {
     stock: payload.stock,
     image: payload.image,
     description: payload.description,
+    discounted_price: typeof payload.discounted_price !== 'undefined' ? payload.discounted_price : null,
+    discount_enabled: typeof payload.discount_enabled !== 'undefined' ? payload.discount_enabled : false,
     updated_by_admin_id: payload.updated_by_admin_id || null
   };
 
@@ -1329,6 +1358,33 @@ app.post('/api/products', async (req, res) => {
     });
   }
 
+  // Validate discount pricing
+  if (typeof payload.discount_enabled !== 'undefined' && payload.discount_enabled) {
+    const originalPrice = Number(payload.price);
+    const discountedPrice = Number(payload.discounted_price);
+    
+    if (isNaN(originalPrice) || isNaN(discountedPrice)) {
+      return res.status(400).json({
+        error: 'Invalid price values',
+        details: 'Both original price and discounted price must be valid numbers'
+      });
+    }
+
+    if (originalPrice <= 0 || discountedPrice <= 0) {
+      return res.status(400).json({
+        error: 'Invalid price values',
+        details: 'Both original price and discounted price must be positive numbers'
+      });
+    }
+
+    if (discountedPrice >= originalPrice) {
+      return res.status(400).json({
+        error: 'Invalid discounted price',
+        details: 'Discounted price must be less than the original price'
+      });
+    }
+  }
+
   const insertPayload = {
     name: payload.name,
     category: normalizedCategory,
@@ -1338,6 +1394,8 @@ app.post('/api/products', async (req, res) => {
     stock: payload.stock,
     image: payload.image,
     description: payload.description,
+    discounted_price: typeof payload.discounted_price !== 'undefined' ? payload.discounted_price : null,
+    discount_enabled: typeof payload.discount_enabled !== 'undefined' ? payload.discount_enabled : false,
     updated_by_admin_id: payload.updated_by_admin_id || null
   };
 

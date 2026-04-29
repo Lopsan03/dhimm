@@ -28,6 +28,8 @@ export interface Product {
   image: string;
   description: string;
   compatibleModels?: string[];
+  discounted_price?: number | null;
+  discount_enabled?: boolean;
 }
 
 export interface CartItem extends Product {
